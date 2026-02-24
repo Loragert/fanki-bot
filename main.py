@@ -1183,7 +1183,8 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
 
-    app.run_polling()
+    app.run_polling(drop_pending_updates=True)
+
 
 
 
