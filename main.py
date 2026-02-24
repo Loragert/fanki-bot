@@ -2,6 +2,8 @@
 
 import re
 import logging
+import traceback
+import asyncio
 from datetime import datetime
 from telegram import (
     Update,
@@ -30,6 +32,33 @@ TOKEN = os.getenv("BOT_TOKEN")
 if not TOKEN:
     raise ValueError("BOT_TOKEN не знайдено!")
 ADMIN_ID = 6699691752
+def notify_admin_async(error_text):
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            
+loop.create_task(send_admin_error(error_text))
+    except:
+        pass
+
+async def send_admin_error(error_text):
+    try:
+        await app.bot.send_messege(
+            ADMIN_ID,
+            f"Помилка в боті:\n\n{error_text[:3500]}"
+        )
+    except:
+        pass
+
+def safe_google_call(func, *args, *kwargs)
+    try:
+        return func(*args, **kwargs)
+    except Exception as e:
+        error_text = f"Google error:\n{str(e)}\n\n{traceback.format_exc()}"
+        print(error_text)
+        notify_admin_async(error_text)
+        return None
+                                   
 
 logging.basicConfig(level=logging.ERROR)
 
@@ -999,4 +1028,5 @@ if __name__ == "__main__":
 
 
     app.run_polling()
+
 
