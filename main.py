@@ -506,7 +506,18 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     username = update.effective_user.username or update.effective_user.first_name
     text = update.message.text if update.message.text else ""
     now = datetime.now().strftime("%d.%m.%Y %H:%M")
+    
+    if text in ["⬅️ Назад", "Назад", "/cancel"]:
+    user_state.pop(user_id, None)
+    admin_state.pop(user_id, None)
+    user_selected_social.pop(user_id, None)
+    user_selected_account.pop(user_id, None)
+    user_binance_id.pop(user_id, None)
+    user_withdraw_amount.pop(user_id, None)
+    current_task.pop(user_id, None)
 
+    await show_main_menu(update)
+    return
     state = user_state.get(user_id)
 
     accounts = sheet_accounts.get_all_values()
@@ -520,11 +531,6 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 
         user_state[user_id] = None
 
-        await show_main_menu(update)
-        return
-
-    if text == "⬅️ Назад":
-        user_state[user_id] = None
         await show_main_menu(update)
         return
 
@@ -1053,6 +1059,7 @@ if __name__ == "__main__":
 
 
     app.run_polling()
+
 
 
 
