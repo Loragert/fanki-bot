@@ -191,8 +191,10 @@ async def show_main_menu(update: Update):
                 ["💸 Виводи"],
                 ["💰 Змінити баланс"],
                 ["📢 Розсилка"],
-                ["📊 Статистика"]
+                ["📊 Статистика"], 
+                ["⬅️ Назад"] 
             ],
+            
             resize_keyboard=True
         )
         await update.message.reply_text("🛠 Адмін панель\nВітаємо в головному меню, оберіть пункт.", reply_markup=markup)
@@ -1052,6 +1054,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             text = update.message.text if update.message.text else ""
 
+            if text in ["⬅️ Назад", "Назад"]:
+                admin_state.pop(user_id, None)
+                await show_main_menu(update)
+                return
+
             if text == "📊 Статистика":
 
                 users = sheet_users.get_all_values()
@@ -1169,6 +1176,7 @@ if __name__ == "__main__":
 
 
     app.run_polling()
+
 
 
 
