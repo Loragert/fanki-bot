@@ -288,6 +288,9 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     action = data[0]
     row_index = int(data[1])
 
+    # =========================
+    # TASK
+    # =========================
     if action.startswith("task"):
 
         row = sheet_tasks.row_values(row_index)
@@ -320,7 +323,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             await safe_edit_caption(query, "✅ Підтверджено")
 
-        if action == "task_reject":
+        elif action == "task_reject":
 
             sheet_tasks.update_cell(row_index, 5, "Rejected")
 
@@ -333,11 +336,14 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await context.bot.send_message(
                 chat_id=int(user_id),
                 text="❌ Завдання відхилено."
-             )
+            )
 
             await safe_edit_caption(query, "❌ Відхилено")
 
-    if action.startswith("withdraw"):
+    # =========================
+    # WITHDRAW
+    # =========================
+    elif action.startswith("withdraw"):
 
         row = sheet_withdrawals.row_values(row_index)
 
@@ -352,54 +358,61 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             sheet_withdrawals.update_cell(row_index, 5, "Approved")
 
             await context.bot.send_message(
-                user_id,
-                "✅ Ваш вивід підтверджено."
+                chat_id=int(user_id),
+                text="✅ Ваш вивід підтверджено."
             )
 
             await safe_edit_caption(query, "✅ Вивід підтверджено")
 
-        if action == "withdraw_reject":
+        elif action == "withdraw_reject":
 
             sheet_withdrawals.update_cell(row_index, 5, "Rejected")
 
             update_user_balance(user_id, amount)
 
             await context.bot.send_message(
-                user_id,
-                "❌ Вивід відхилено. Баланс повернено."
+                chat_id=int(user_id),
+                text="❌ Вивід відхилено. Баланс повернено."
             )
 
             await safe_edit_caption(query, "❌ Вивід відхилено")
 
-        if action.startswith("account"):
-                   row = sheet_accounts.row_values(row_index)
+    # =========================
+    # ACCOUNT
+    # =========================
+    elif action.startswith("account"):
 
-                   if len(row) < 4 or row[3] != "Pending":
-                       return
+        row = sheet_accounts.row_values(row_index)
 
-                   user_id = row[0]
-                   social = row[1]
-                   nickname = row[2] 
+        if len(row) < 4 or row[3] != "Pending":
+            return
 
-                   if action == "account_approve":
-                   sheet_accounts.update_cell(row_index, 4, "Approved")
+        user_id = row[0]
+        social = row[1]
+        nickname = row[2]
 
-                       await context.bot.send_message(
-                           int(user_id),
-                           "✅ Ваш акаунт підтверджено."
-                       )
+        if action == "account_approve":
 
-                       await safe_edit_caption(query, "✅ Акаунт підтверджено")
+            sheet_accounts.update_cell(row_index, 4, "Approved")
 
-                   if action == "account_reject":
-        sheet_accounts.update_cell(row_index, 4, "Rejected")
+            await context.bot.send_message(
+                chat_id=int(user_id),
+                text=f"✅ Ваш акаунт {nickname} ({social}) підтверджено."
+            )
 
-                       await context.bot.send_message(
-                           int(user_id),
-                           "❌ Ваш акаунт відхилено."
-                       )
+            await query.edit_message_text("✅ Акаунт підтверджено")
 
-                      await safe_edit_caption(query, "❌ Акаунт відхилено")
+        elif action == "account_reject":
+
+            sheet_accounts.update_cell(row_index, 4, "Rejected")
+
+            await context.bot.send_message(
+                chat_id=int(user_id),
+                text=f"❌ Ваш акаунт {nickname} ({social}) відхилено."
+            )
+
+            await query.edit_message_text("❌ Акаунт відхилено")
+       
 
 # ==============================
 # GLOBAL ERROR HANDLER
@@ -1156,6 +1169,7 @@ if __name__ == "__main__":
 
 
     app.run_polling()
+
 
 
 
