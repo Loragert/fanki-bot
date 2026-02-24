@@ -508,16 +508,16 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     now = datetime.now().strftime("%d.%m.%Y %H:%M")
     
     if text in ["⬅️ Назад", "Назад", "/cancel"]:
-    user_state.pop(user_id, None)
-    admin_state.pop(user_id, None)
-    user_selected_social.pop(user_id, None)
-    user_selected_account.pop(user_id, None)
-    user_binance_id.pop(user_id, None)
-    user_withdraw_amount.pop(user_id, None)
-    current_task.pop(user_id, None)
+        user_state.pop(user_id, None)
+        admin_state.pop(user_id, None)
+        user_selected_social.pop(user_id, None)
+        user_selected_account.pop(user_id, None)
+        user_binance_id.pop(user_id, None)
+        user_withdraw_amount.pop(user_id, None)
+        current_task.pop(user_id, None)
 
-    await show_main_menu(update)
-    return
+        await show_main_menu(update)
+        return
     state = user_state.get(user_id)
 
     accounts = sheet_accounts.get_all_values()
@@ -1059,6 +1059,7 @@ if __name__ == "__main__":
 
 
     app.run_polling()
+
 
 
 
