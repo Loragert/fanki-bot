@@ -1065,28 +1065,35 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 tasks = sheet_tasks.get_all_values()
                 withdrawals = sheet_withdrawals.get_all_values()
 
-                total_balance = sum(
-                    int(r[3]) for r in users
-                    if len(r) > 3 and r[3]
-                )
+                total_balance = 0
 
-                total_earned = sum(
-                    int(r[4]) for r in users
-                    if len(r) > 4 and r[4]
-                )
+                for r in users[1:]:  # пропускаємо заголовок
+                    if len(r) > 3:   # перевіряємо що колонка існує
+                        value = r[3].strip()
+
+                        if value.isdigit():
+                            total_balance += int(value)
+
+                total_earned = 0
+                for r in users[1:]:
+                    if len(r) > 4:
+                        value = r[4].strip()
+                        if value.isdigit():
+                            total_earned += int(value) 
 
                 pending_tasks = sum(
                     1 for r in tasks
-                    if r and r[4] == "Pending"
+                    if len(r) > 4 and r[4] == "Pending"
                 )
 
                 pending_withdraws = sum(
                     1 for r in withdrawals
-                    if r and r[4] == "Pending"
+                    if len(r) > 4 and r[4] == "Pending"
                 )
+                user_count = max(len(users) - 1,0)
 
                 await update.message.reply_text(
-                    f"👥 Користувачів: {len(users)}\n"
+                    f"👥 Користувачів: {user_count}\n"
                     f"💰 Сума балансів: {total_balance}\n"
                     f"📈 Всього зароблено: {total_earned}\n"
                     f"📋 Pending задач: {pending_tasks}\n"
@@ -1109,6 +1116,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if isinstance(admin_state.get(user_id), tuple):
 
                 state_name, target_id = admin_state[user_id]
+                target_id = int(target_id) 
 
                 if state_name == "await_amount":
 
@@ -1176,6 +1184,7 @@ if __name__ == "__main__":
 
 
     app.run_polling()
+
 
 
 
