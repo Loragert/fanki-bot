@@ -174,8 +174,8 @@ def get_user_stats(user_id):
         if row and row[0] == str(user_id) and len(row) > 4:
             if row[4] == "Approved":
                 comleted_tasks += 1
-
-     return reg_date, comleted_tasks
+                
+    return reg_date, comleted_tasks
     
 # ==============================
 # MENU
@@ -468,7 +468,7 @@ async def send_next_task(update: Update, user_id: str):
         if not template or len(template) < 8:
             continue
 
-        task_id, sn, task_type, link, reward, max_per_day,max_total, active = template
+        task_id, sn, task_type, link, reward, max_per_day, max_total, active = template
 
         if sn != social_network or active != "TRUE" or task_id in done_tasks:
             continue
@@ -1221,6 +1221,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
