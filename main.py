@@ -71,15 +71,39 @@ scope = [
     "https://www.googleapis.com/auth/drive"
 ]
 
-creds = ServiceAccountCredentials.from_json_keyfile_name("/workspace/creds.json", scope)
-client = gspread.authorize(creds)
+creds = safe_google_call(
+    lambda: ServiceAccountCredentials.from_json_keyfile_name(
+        "/workspace/creds.json", scope
+    )
+)
 
-sheet_users = client.open("FankiBot").worksheet("Users")
-sheet_accounts = client.open("FankiBot").worksheet("Accounts")
-sheet_withdrawals = client.open("FankiBot").worksheet("Withdrawals")
-sheet_templates = client.open("FankiBot").worksheet("TaskTemplates")
-sheet_tasks = client.open("FankiBot").worksheet("Tasks")
-sheet_comment_pool = client.open("FankiBot").worksheet("Comment_Pool")
+client = safe_google_call(
+    lambda: gspread.authorize(creds)
+) if creds else None
+
+sheet_users = safe_google_call(
+    lambda: client.open("FankiBot").worksheet("Users")
+) if client else None
+
+sheet_accounts = safe_google_call(
+    lambda: client.open("FankiBot").worksheet("Accounts")
+) if client else None
+
+sheet_withdrawals = safe_google_call(
+    lambda: client.open("FankiBot").worksheet("Withdrawals")
+) if client else None
+
+sheet_templates = safe_google_call(
+    lambda: client.open("FankiBot").worksheet("TaskTemplates")
+) if client else None
+
+sheet_tasks = safe_google_call(
+    lambda: client.open("FankiBot").worksheet("Tasks")
+) if client else None
+
+sheet_comment_pool = safe_google_call(
+    lambda: client.open("FankiBot").worksheet("Comment_Pool")
+) if client else None
 
 # ==============================
 # STATE
@@ -1028,5 +1052,6 @@ if __name__ == "__main__":
 
 
     app.run_polling()
+
 
 
