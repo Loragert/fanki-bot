@@ -465,14 +465,56 @@ async def send_next_task(update: Update, user_id: str):
 
     for template in templates:
 
-        if not template or len(template) < 7:
+        if not template or len(template) < 8:
             continue
 
-        task_id, sn, task_type, link, reward, max_per_day, active = template
+        task_id, sn, task_type, link, reward, max_per_day,max_total, active = template
 
         if sn != social_network or active != "TRUE" or task_id in done_tasks:
+    continue
+
+
+# ==============================
+# 🔹 ЛІМІТ НА КОРИСТУВАЧА В ДЕНЬ
+# ==============================
+
+        today = datetime.now().strftime("%d.%m.%Y")
+
+        user_today_count = 0
+
+        for t in tasks:
+            if (
+                t
+                and len(t) > 5
+                and t[0] == str(user_id)
+                and t[3] == task_id
+                and t[4] == "Approved"
+                and today in t[5]
+            ):
+                user_today_count += 1
+
+        if max_per_day and user_today_count >= int(max_per_day):
             continue
 
+
+# ==============================
+# 🔹 ГЛОБАЛЬНИЙ ЛІМІТ
+# ==============================
+
+        total_approved = 0
+
+        for t in tasks:
+            if (
+                t
+                and len(t) > 4
+                and t[3] == task_id
+                and t[4] == "Approved"
+            ):
+                total_approved += 1
+
+        if max_total and total_approved >= int(max_total):
+            continue
+            
         comment_text = ""
         comment_row_index = None
 
@@ -1179,6 +1221,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
