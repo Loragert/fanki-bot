@@ -807,11 +807,19 @@ async def handle_withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user_id = update.effective_user.id
     text = update.message.text if update.message.text else ""
-    now = datetime.now().strftime("%d.%m.%Y %H:%M")
     state = user_state.get(user_id)
+
+    # 🔥 Глобальний "Назад" всередині withdraw
+    if text in ["⬅️ Назад", "Назад"]:
+        user_state.pop(user_id, None)
+        user_binance_id.pop(user_id, None)
+        user_withdraw_amount.pop(user_id, None)
+        await show_main_menu(update)
+        return True
 
     withdrawals = sheet_withdrawals.get_all_values()
 
+    # --- START WITHDRAW ---
     if text == "Вивід":
 
         balance, _, _ = get_user_data(user_id)
@@ -834,9 +842,19 @@ async def handle_withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return True
 
         user_state[user_id] = "await_binance"
-        await update.message.reply_text("Введіть Binance ID:")
+
+        markup = ReplyKeyboardMarkup(
+            [["⬅️ Назад"]],
+            resize_keyboard=True
+        )
+
+        await update.message.reply_text(
+            "Введіть Binance ID:",
+            reply_markup=markup
+        )
         return True
 
+    # --- BINANCE ID ---
     if state == "await_binance":
 
         if not text.isdigit():
@@ -848,9 +866,18 @@ async def handle_withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_binance_id[user_id] = text
         user_state[user_id] = "await_amount"
 
-        await update.message.reply_text("Введіть суму:")
+        markup = ReplyKeyboardMarkup(
+            [["⬅️ Назад"]],
+            resize_keyboard=True
+        )
+
+        await update.message.reply_text(
+            "Введіть суму:",
+            reply_markup=markup
+        )
         return True
 
+    # --- AMOUNT ---
     if state == "await_amount":
 
         balance, _, _ = get_user_data(user_id)
@@ -880,12 +907,15 @@ async def handle_withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
         await update.message.reply_text(
-            f"Підтвердити вивід {amount} Fanki $({amount/1000:.2f}) на Binance ID {user_binance_id[user_id]}?",
+            f"Підтвердити вивід {amount} Fanki "
+            f"(${amount/1000:.2f}) "
+            f"на Binance ID {user_binance_id[user_id]}?",
             reply_markup=markup
         )
 
         return True
 
+    # --- CONFIRM ---
     if state == "confirm_withdraw" and text == "Так":
 
         amount = user_withdraw_amount.get(user_id)
@@ -895,13 +925,10 @@ async def handle_withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
             user_state[user_id] = None
             return True
 
-        # 🔥 фіксуємо час ТУТ
         now = datetime.now().strftime("%d.%m.%Y %H:%M")
 
-        # списуємо баланс
         deduct_user_balance(user_id, amount)
 
-        # записуємо заявку
         sheet_withdrawals.append_row([
             user_id,
             update.effective_user.username or "",
@@ -937,6 +964,7 @@ async def handle_withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         user_state[user_id] = None
         return True
+
     return False
 
 # ==============================
@@ -1073,6 +1101,7 @@ if __name__ == "__main__":
 
 
     app.run_polling()
+
 
 
 
