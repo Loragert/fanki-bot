@@ -42,7 +42,7 @@ scope = [
     "https://www.googleapis.com/auth/drive"
 ]
 
-creds = ServiceAccountCredentials.from_json_keyfile_name("creds.json", scope)
+creds = ServiceAccountCredentials.from_json_keyfile_name("/workspace/creds.json", scope)
 client = gspread.authorize(creds)
 
 sheet_users = client.open("FankiBot").worksheet("Users")
@@ -999,3 +999,4 @@ if __name__ == "__main__":
 
 
     app.run_polling()
+
