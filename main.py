@@ -517,9 +517,11 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         current_task.pop(user_id, None)
         await show_main_menu(update)
         return
-        # 🔥 ДОДАТИ ОЦЕ
-        if text == "Вивід":
-            return await handle_withdraw(update, context)
+
+    # 🔥 ОКРЕМИЙ блок для виводу
+    if text == "Вивід":
+        user_state.pop(user_id, None)
+        return await handle_withdraw(update, context)
 
     if text in [
         "Реєстрація акаунту",
@@ -532,7 +534,6 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     state = user_state.get(user_id)
     accounts = sheet_accounts.get_all_values()
-
     if state == "await_accept" and text == "Приймаю":
 
         users = sheet_users.get_all_values()
@@ -1070,6 +1071,7 @@ if __name__ == "__main__":
 
 
     app.run_polling()
+
 
 
 
