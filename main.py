@@ -501,18 +501,18 @@ async def send_next_task(update: Update, user_id: str):
 # 🔹 ГЛОБАЛЬНИЙ ЛІМІТ
 # ==============================
 
-        total_approved = 0
+        total_used = 0
 
         for t in tasks:
             if (
                 t
                 and len(t) > 4
                 and t[3] == task_id
-                and t[4] == "Approved"
+                and t[4] in ["Pending", "Approved"] 
             ):
                 total_approved += 1
 
-        if max_total and total_approved >= int(max_total):
+        if max_total and total_used >= int(max_total):
             continue
             
         comment_text = ""
@@ -1221,6 +1221,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
