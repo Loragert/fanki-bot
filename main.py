@@ -510,7 +510,7 @@ async def send_next_task(update: Update, user_id: str):
                 and t[3] == task_id
                 and t[4] in ["Pending", "Approved"] 
             ):
-                total_approved += 1
+                total_used += 1
 
         if max_total and total_used >= int(max_total):
             continue
@@ -1221,6 +1221,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
