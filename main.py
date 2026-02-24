@@ -750,7 +750,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             "Pending",
             now,
             file_id,
-            task["comment"],
+            task.get("comment", "") or "",
             ""
         ])
 
@@ -1101,6 +1101,7 @@ if __name__ == "__main__":
 
 
     app.run_polling()
+
 
 
 
