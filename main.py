@@ -518,6 +518,15 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 
         await show_main_menu(update)
         return
+     if text in [
+        "Реєстрація акаунту",
+        "Мій кабінет",
+        "Інформація про бот",
+        "Завдання",
+        "Підтримка",
+        "Вивід"
+     ]:
+        user_state.pop(user_id, None)
     state = user_state.get(user_id)
 
     accounts = sheet_accounts.get_all_values()
@@ -1059,6 +1068,7 @@ if __name__ == "__main__":
 
 
     app.run_polling()
+
 
 
 
