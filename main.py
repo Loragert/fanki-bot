@@ -1170,11 +1170,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except:
             pass
 
-# ==============================
-# FINAL RUN
-# ==============================
-
-import asyncio
 
 if __name__ == "__main__":
     app = build_app()
@@ -1183,16 +1178,7 @@ if __name__ == "__main__":
 
     print("FankiBot Production Ready 🚀")
 
-    async def main():
-        # прибираємо старий webhook і старі апдейти
-        await app.bot.delete_webhook(drop_pending_updates=True)
-
-        await app.run_polling(drop_pending_updates=True)
-
-    asyncio.run(main())
-
-
-
+    app.run_polling(drop_pending_updates=True)
 
 
 
