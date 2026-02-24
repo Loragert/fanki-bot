@@ -36,8 +36,7 @@ def notify_admin_async(error_text):
     try:
         loop = asyncio.get_event_loop()
         if loop.is_running():
-            
-loop.create_task(send_admin_error(error_text))
+            loop.create_task(send_admin_error(error_text))
     except:
         pass
 
@@ -1052,6 +1051,7 @@ if __name__ == "__main__":
 
 
     app.run_polling()
+
 
 
 
