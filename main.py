@@ -331,9 +331,9 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         sheet_comment_pool.update_cell(i, 3, "TRUE")
 
             await context.bot.send_message(
-                user_id,
-                "❌ Завдання відхилено."
-            )
+                chat_id=int(user_id),
+                text="❌ Завдання відхилено."
+             )
 
             await safe_edit_caption(query, "❌ Відхилено")
 
@@ -370,6 +370,36 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
 
             await safe_edit_caption(query, "❌ Вивід відхилено")
+
+        if action.startswith("account"):
+                   row = sheet_accounts.row_values(row_index)
+
+                   if len(row) < 4 or row[3] != "Pending":
+                       return
+
+                   user_id = row[0]
+                   social = row[1]
+                   nickname = row[2] 
+
+                   if action == "account_approve":
+                   sheet_accounts.update_cell(row_index, 4, "Approved")
+
+                       await context.bot.send_message(
+                           int(user_id),
+                           "✅ Ваш акаунт підтверджено."
+                       )
+
+                       await safe_edit_caption(query, "✅ Акаунт підтверджено")
+
+                   if action == "account_reject":
+        sheet_accounts.update_cell(row_index, 4, "Rejected")
+
+                       await context.bot.send_message(
+                           int(user_id),
+                           "❌ Ваш акаунт відхилено."
+                       )
+
+                      await safe_edit_caption(query, "❌ Акаунт відхилено")
 
 # ==============================
 # GLOBAL ERROR HANDLER
@@ -619,16 +649,41 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 
         sheet_accounts.append_row(
             [user_id,
-             user_selected_social[user_id],
+        user_selected_social[user_id],
              text,
              "Pending",
              now]
         )
 
+        accounts = sheet_accounts.get_all_values()
+        row_index = len(accounts)
+
+        keyboard = InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton(
+                    "✅ Підтвердити",
+        callback_data=f"account_approve|{row_index}"
+          ),
+                InlineKeyboardButton(
+                    "❌ Відхилити",
+        callback_data=f"account_reject|{row_index}"
+          )
+           ]
+        ])
+
+        await context.bot.send_message(
+                  ADMIN_ID,
+                  f"Новий акаунт\n\n"
+                  f"User ID: {user_id}\n"
+                  f"Соцмережа: {user_selected_social[user_id]}\n"
+                  f"Нік: {text}",
+                  reply_markup=keyboard
+        )
+
         user_state[user_id] = None
 
         await update.message.reply_text(
-            "Акаунт відправлено на модерацію."
+                   "Акаунт відправлено на модерацію."
         )
 
         return
@@ -1101,6 +1156,7 @@ if __name__ == "__main__":
 
 
     app.run_polling()
+
 
 
 
