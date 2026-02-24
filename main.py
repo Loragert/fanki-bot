@@ -40,16 +40,18 @@ def notify_admin_async(error_text):
     except:
         pass
 
+
 async def send_admin_error(error_text):
     try:
-        await app.bot.send_messege(
+        await app.bot.send_message(
             ADMIN_ID,
-            f"Помилка в боті:\n\n{error_text[:3500]}"
+            f"🚨 ПОМИЛКА В БОТІ:\n\n{error_text[:3500]}"
         )
     except:
         pass
 
-def safe_google_call(func, *args, *kwargs)
+
+def safe_google_call(func, *args, **kwargs):
     try:
         return func(*args, **kwargs)
     except Exception as e:
@@ -1051,6 +1053,7 @@ if __name__ == "__main__":
 
 
     app.run_polling()
+
 
 
 
