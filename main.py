@@ -505,7 +505,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     user_id = update.effective_user.id
     username = update.effective_user.username or update.effective_user.first_name
     text = update.message.text if update.message.text else ""
-    now = datetime.now().strftime("%d.%m.%Y %H:%M")
+   
 
     if text in ["⬅️ Назад", "Назад", "/cancel"]:
         user_state.pop(user_id, None)
@@ -895,8 +895,13 @@ async def handle_withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
             user_state[user_id] = None
             return True
 
+        # 🔥 фіксуємо час ТУТ
+        now = datetime.now().strftime("%d.%m.%Y %H:%M")
+
+        # списуємо баланс
         deduct_user_balance(user_id, amount)
 
+        # записуємо заявку
         sheet_withdrawals.append_row([
             user_id,
             update.effective_user.username or "",
@@ -928,13 +933,10 @@ async def handle_withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=keyboard
         )
 
-        await update.message.reply_text(
-            "Заявка створена."
-        )
+        await update.message.reply_text("Заявка створена.")
 
         user_state[user_id] = None
         return True
-
     return False
 
 # ==============================
@@ -1071,6 +1073,7 @@ if __name__ == "__main__":
 
 
     app.run_polling()
+
 
 
 
