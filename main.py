@@ -505,7 +505,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     user_id = update.effective_user.id
     username = update.effective_user.username or update.effective_user.first_name
     text = update.message.text if update.message.text else ""
-   
+    now = datetime.now().strftime("%d.%m.%Y %H:%M")
 
     if text in ["⬅️ Назад", "Назад", "/cancel"]:
         user_state.pop(user_id, None)
@@ -1101,6 +1101,7 @@ if __name__ == "__main__":
 
 
     app.run_polling()
+
 
 
 
