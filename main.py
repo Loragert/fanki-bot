@@ -506,7 +506,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     username = update.effective_user.username or update.effective_user.first_name
     text = update.message.text if update.message.text else ""
     now = datetime.now().strftime("%d.%m.%Y %H:%M")
-    
+
     if text in ["⬅️ Назад", "Назад", "/cancel"]:
         user_state.pop(user_id, None)
         admin_state.pop(user_id, None)
@@ -515,20 +515,20 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         user_binance_id.pop(user_id, None)
         user_withdraw_amount.pop(user_id, None)
         current_task.pop(user_id, None)
-
         await show_main_menu(update)
         return
-     if text in [
+
+    if text in [
         "Реєстрація акаунту",
         "Мій кабінет",
         "Інформація про бот",
         "Завдання",
         "Підтримка",
         "Вивід"
-     ]:
-    user_state.pop(user_id, None)
-    state = user_state.get(user_id)
+    ]:
+        user_state.pop(user_id, None)
 
+    state = user_state.get(user_id)
     accounts = sheet_accounts.get_all_values()
 
     if state == "await_accept" and text == "Приймаю":
@@ -1068,6 +1068,7 @@ if __name__ == "__main__":
 
 
     app.run_polling()
+
 
 
 
