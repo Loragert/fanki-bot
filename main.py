@@ -518,8 +518,8 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         await show_main_menu(update)
         return
         # 🔥 ДОДАТИ ОЦЕ
-if text == "Вивід":
-    return await handle_withdraw(update, context)
+        if text == "Вивід":
+            return await handle_withdraw(update, context)
 
     if text in [
         "Реєстрація акаунту",
@@ -1070,6 +1070,7 @@ if __name__ == "__main__":
 
 
     app.run_polling()
+
 
 
 
