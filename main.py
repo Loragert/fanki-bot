@@ -526,7 +526,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         "Підтримка",
         "Вивід"
      ]:
-        user_state.pop(user_id, None)
+    user_state.pop(user_id, None)
     state = user_state.get(user_id)
 
     accounts = sheet_accounts.get_all_values()
@@ -1068,6 +1068,7 @@ if __name__ == "__main__":
 
 
     app.run_polling()
+
 
 
 
