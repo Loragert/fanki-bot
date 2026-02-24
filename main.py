@@ -517,14 +517,16 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         current_task.pop(user_id, None)
         await show_main_menu(update)
         return
+        # 🔥 ДОДАТИ ОЦЕ
+if text == "Вивід":
+    return await handle_withdraw(update, context)
 
     if text in [
         "Реєстрація акаунту",
         "Мій кабінет",
         "Інформація про бот",
         "Завдання",
-        "Підтримка",
-        "Вивід"
+        "Підтримка"
     ]:
         user_state.pop(user_id, None)
 
@@ -1068,6 +1070,7 @@ if __name__ == "__main__":
 
 
     app.run_polling()
+
 
 
 
