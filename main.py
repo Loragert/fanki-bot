@@ -1411,7 +1411,17 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await update.message.reply_text("Введіть текст:")
                 return
 
-            if admin_state.get(user_id) == "broadcast":
+            if (admin_state.get(user_id) == "broadcast" 
+            and text not in [
+                      "📋 Завдання",
+                      "💸 Виводи",
+                      "📊 Статистика",
+                      "💰 Змінити баланс",
+                      "🔒 Бан користувача",
+                      "📢 Розсилка",
+                      "⬅️ Назад"
+                            ]:
+               ):
 
                 users = cached_users
 
@@ -1457,6 +1467,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
