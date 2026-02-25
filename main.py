@@ -447,7 +447,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    if update.effective_user.id != ADMIN_ID:
+    if update.effective_user.id not in ADMIN_ID:
         return
 
     data = query.data.split("|")
@@ -1425,11 +1425,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 admin_state[user_id] = None
                 return
 
-        handled = await handle_withdraw(update, context)
+         handled = await handle_withdraw(update, context)
         if handled:
             return
-
-        await handle_user_message(update, context)
+            await handle_user_message(update, context)
 
     except Exception as e:
         logging.error(f"Runtime error: {e}")
@@ -1451,6 +1450,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
