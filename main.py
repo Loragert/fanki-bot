@@ -1138,17 +1138,20 @@ async def handle_withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ==============================
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
     user_id = update.effective_user.id
     _, _, status = get_user_data(user_id)
-    
+
+    # 🔒 ЖОРСТКИЙ БАН
     if status == "Banned":
-        await update.message.reply_text(
-        "🚫 Ваш акаунт заблоковано адміністрацією."
-        )
+        if update.message:
+            await update.message.reply_text("⛔ Ваш акаунт заблоковано адміністрацією.")
+        elif update.callback_query:
+            await update.callback_query.answer()
+            await update.callback_query.message.reply_text("⛔ Ваш акаунт заблоковано адміністрацією.")
         return
 
     try:
-
         if not update.message:
             return
 
@@ -1287,6 +1290,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
