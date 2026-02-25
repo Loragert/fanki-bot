@@ -31,7 +31,7 @@ import os
 TOKEN = os.getenv("BOT_TOKEN")
 if not TOKEN:
     raise ValueError("BOT_TOKEN не знайдено!")
-ADMIN_ID = 6699691752
+ADMIN_ID = [6699691752]
 def notify_admin_async(error_text):
     try:
         loop = asyncio.get_event_loop()
@@ -44,7 +44,7 @@ def notify_admin_async(error_text):
 async def send_admin_error(error_text):
     try:
         await app.bot.send_message(
-            ADMIN_ID,
+            ADMIN_ID[0],
             f"🚨 ПОМИЛКА В БОТІ:\n\n{error_text[:3500]}"
         )
     except:
@@ -104,6 +104,10 @@ sheet_tasks = safe_google_call(
 
 sheet_comment_pool = safe_google_call(
     lambda: client.open("FankiBot").worksheet("Comment_Pool")
+) if client else None
+
+sheet_admin_logs = safe_google_call(
+    lambda:client.open("FankiBot").worksheet("AdminLogs")
 ) if client else None
 
 # ==============================
@@ -198,7 +202,130 @@ def get_user_stats(user_id):
                 comleted_tasks += 1
                 
     return reg_date, comleted_tasks
-    
+
+# ==============================
+# ADMIN PANEL (INLINE)
+# ==============================
+
+def is_admin(user_id):
+    return user_id in ADMIN_ID
+
+
+def log_admin_action(admin_id, action, target_user_id="", details=""):
+    now = datetime.now().strftime("%d.%m.%Y %H:%M")
+    sheet_admin_logs.append_row([
+        now,
+        str(admin_id),
+        action,
+        str(target_user_id),
+        details
+    ])
+
+
+async def show_admin_panel(update, context):
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("👤 Користувачі", callback_data="admin_users")],
+        [InlineKeyboardButton("📊 Аналітика", callback_data="admin_stats")]
+    ])
+
+    if update.callback_query:
+        await update.callback_query.edit_message_text(
+            "🛠 Адмін панель",
+            reply_markup=keyboard
+        )
+    else:
+        await update.message.reply_text(
+            "🛠 Адмін панель",
+            reply_markup=keyboard
+        )
+
+
+async def handle_admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    admin_id = update.effective_user.id
+
+    if not is_admin(admin_id):
+        return
+
+    data = query.data
+
+    # ---------------- USERS MENU ----------------
+    if data == "admin_users":
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🔍 Пошук по ID", callback_data="admin_search_user")],
+            [InlineKeyboardButton("⬅️ Назад", callback_data="admin_back")]
+        ])
+
+        await query.edit_message_text(
+            "👤 Користувачі",
+            reply_markup=keyboard
+        )
+
+    # ---------------- SEARCH ----------------
+    elif data == "admin_search_user":
+        context.user_data["admin_state"] = "await_user_id"
+        await query.edit_message_text("Введіть ID користувача:")
+
+    # ---------------- BACK ----------------
+    elif data == "admin_back":
+        await show_admin_panel(update, context)
+
+    # ---------------- USER PROFILE ACTIONS ----------------
+    elif data.startswith("admin_ban_"):
+        target_id = data.split("_")[-1]
+        refresh_cache()
+
+        for i, row in enumerate(cached_users, start=1):
+            if row and row[0] == target_id:
+                sheet_users.update_cell(i, 6, "Banned")
+                break
+
+        log_admin_action(admin_id, "BAN", target_id, "Manual ban")
+        refresh_cache()
+
+        await query.edit_message_text(f"🔴 Користувач {target_id} заблокований.")
+
+    elif data.startswith("admin_unban_"):
+        target_id = data.split("_")[-1]
+        refresh_cache()
+
+        for i, row in enumerate(cached_users, start=1):
+            if row and row[0] == target_id:
+                sheet_users.update_cell(i, 6, "Active")
+                break
+
+        log_admin_action(admin_id, "UNBAN", target_id, "Manual unban")
+        refresh_cache()
+
+        await query.edit_message_text(f"🟢 Користувач {target_id} активований.")
+
+    elif data.startswith("admin_balance_"):
+        target_id = data.split("_")[-1]
+        context.user_data["admin_state"] = ("await_balance", target_id)
+        await query.edit_message_text("Введіть суму (+500 або -300):")
+
+    # ---------------- STATS ----------------
+    elif data == "admin_stats":
+        refresh_cache()
+
+        total_users = len(cached_users) - 1
+        active = sum(1 for r in cached_users if len(r) > 5 and r[5] == "Active")
+        banned = sum(1 for r in cached_users if len(r) > 5 and r[5] == "Banned")
+
+        total_balance = sum(
+            int(r[3]) for r in cached_users[1:]
+            if len(r) > 3 and r[3].isdigit()
+        )
+
+        await query.edit_message_text(
+            f"📊 Аналітика\n\n"
+            f"👥 Всього користувачів: {total_users}\n"
+            f"🟢 Active: {active}\n"
+            f"🔴 Banned: {banned}\n"
+            f"💰 Сума балансів: {total_balance}"
+        )
 # ==============================
 # MENU
 # ==============================
@@ -220,7 +347,7 @@ async def show_main_menu(update: Update):
         return
 
 
-    if user_id == ADMIN_ID:
+    if is_admin(user_id):
         markup = ReplyKeyboardMarkup(
             [
                 ["📋 Завдання"],
@@ -228,7 +355,8 @@ async def show_main_menu(update: Update):
                 ["💰 Змінити баланс"],
                 ["📢 Розсилка"],
                 ["📊 Статистика"], 
-                ["⬅️ Назад"] 
+                ["⬅️ Назад"],
+                ["🔒 Бан користувача"]
             ],
             
             resize_keyboard=True
@@ -781,7 +909,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         ])
 
         await context.bot.send_message(
-                  ADMIN_ID,
+                  ADMIN_ID[0],
                   f"Новий акаунт\n\n"
                   f"User ID: {user_id}\n"
                   f"Соцмережа: {user_selected_social[user_id]}\n"
@@ -1121,7 +1249,7 @@ async def handle_withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ])
 
         await context.bot.send_message(
-            ADMIN_ID,
+            ADMIN_ID[0],
             f"Вивід\nUser: {user_id}\nСума: {amount}",
             reply_markup=keyboard
         )
@@ -1157,7 +1285,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         user_id = update.effective_user.id
 
-        if user_id == ADMIN_ID:
+        if is_admin(user_id):
 
             text = update.message.text if update.message.text else ""
 
@@ -1208,6 +1336,39 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     f"💸 Pending виводів: {pending_withdraws}"
                 )
                 return
+
+            if text == "🔒 Бан користувача":
+                admin_state[user_id] = "await_ban_user_id"
+                await update.message.reply_text("Введіть ID користувача для блокування:")
+                return
+
+
+            if admin_state.get(user_id) == "await_ban_user_id":
+
+                target_id = text.strip()
+
+    # оновлюємо кеш
+                refresh_cache()
+
+                found = False
+
+                for i, row in enumerate(cached_users, start=1):
+                    if row and row[0] == target_id:
+                        sheet_users.update_cell(i, 6, "Banned")
+                        found = True
+                        break
+
+                if not found:
+                    await update.message.reply_text("Користувача не знайдено.")
+                    return
+
+                log_admin_action(user_id, "BAN", target_id, "Manual ban from admin panel")
+                refresh_cache()
+
+                await update.message.reply_text(f"🔴 Користувач {target_id} заблокований.")
+                admin_state[user_id] = None
+                return
+
 
             if text == "💰 Змінити баланс":
 
@@ -1290,6 +1451,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
