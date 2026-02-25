@@ -1420,7 +1420,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                       "🔒 Бан користувача",
                       "📢 Розсилка",
                       "⬅️ Назад"
-                            ]:
+                ]
                ):
 
                 users = cached_users
@@ -1467,6 +1467,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
