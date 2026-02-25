@@ -1273,45 +1273,125 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if status == "Banned":
         if update.message:
             await update.message.reply_text("⛔ Ваш акаунт заблоковано адміністрацією.")
-        elif update.callback_query:
-            await update.callback_query.answer()
-            await update.callback_query.message.reply_text("⛔ Ваш акаунт заблоковано адміністрацією.")
         return
 
     try:
         if not update.message:
             return
 
-        user_id = update.effective_user.id
-        text = update.message.text if update.message.text else ""
+        text = update.message.text or ""
 
         # ================= ADMIN =================
         if is_admin(user_id):
 
+            # Назад
             if text in ["⬅️ Назад", "Назад"]:
                 admin_state.pop(user_id, None)
                 await show_main_menu(update)
                 return
 
+            # 📊 Статистика
+            if text == "📊 Статистика":
+                refresh_cache()
+
+                users = cached_users
+                tasks = cached_tasks
+                withdrawals = cached_withdrawals
+
+                total_balance = sum(
+                    int(r[3]) for r in users[1:]
+                    if len(r) > 3 and r[3].isdigit()
+                )
+
+                total_users = max(len(users) - 1, 0)
+
+                pending_tasks = sum(
+                    1 for r in tasks if len(r) > 4 and r[4] == "Pending"
+                )
+
+                pending_withdraws = sum(
+                    1 for r in withdrawals if len(r) > 4 and r[4] == "Pending"
+                )
+
+                await update.message.reply_text(
+                    f"👥 Користувачів: {total_users}\n"
+                    f"💰 Сума балансів: {total_balance}\n"
+                    f"📋 Pending задач: {pending_tasks}\n"
+                    f"💸 Pending виводів: {pending_withdraws}"
+                )
+                return
+
+            # 🔒 Бан користувача
+            if text == "🔒 Бан користувача":
+                admin_state[user_id] = "await_ban_id"
+                await update.message.reply_text("Введіть ID користувача:")
+                return
+
+            if admin_state.get(user_id) == "await_ban_id":
+                refresh_cache()
+                target_id = text.strip()
+
+                for i, row in enumerate(cached_users, start=1):
+                    if row and row[0] == target_id:
+                        sheet_users.update_cell(i, 6, "Banned")
+                        await update.message.reply_text("Користувача заблоковано.")
+                        admin_state[user_id] = None
+                        refresh_cache()
+                        return
+
+                await update.message.reply_text("Користувача не знайдено.")
+                return
+
+            # 💰 Змінити баланс
+            if text == "💰 Змінити баланс":
+                admin_state[user_id] = "await_balance_id"
+                await update.message.reply_text("Введіть ID користувача:")
+                return
+
+            if admin_state.get(user_id) == "await_balance_id":
+                admin_state[user_id] = ("await_balance_amount", text)
+                await update.message.reply_text("Введіть суму (+500 або -300):")
+                return
+
+            if isinstance(admin_state.get(user_id), tuple):
+                state_name, target_id = admin_state[user_id]
+
+                if state_name == "await_balance_amount":
+                    try:
+                        amount = int(text)
+                    except:
+                        await update.message.reply_text("Введіть число.")
+                        return
+
+                    if amount >= 0:
+                        update_user_balance(target_id, amount)
+                    else:
+                        deduct_user_balance(target_id, abs(amount))
+
+                    refresh_cache()
+                    await update.message.reply_text("Баланс змінено.")
+                    admin_state[user_id] = None
+                    return
+
+            # 📋 Завдання
             if text == "📋 Завдання":
                 await handle_user_message(update, context)
                 return
 
+            # 💸 Виводи
             if text == "💸 Виводи":
                 handled = await handle_withdraw(update, context)
                 if handled:
                     return
 
+            # 📢 Розсилка
             if text == "📢 Розсилка":
                 admin_state[user_id] = "broadcast"
                 await update.message.reply_text("Введіть текст:")
                 return
 
             if admin_state.get(user_id) == "broadcast":
-
-                users = cached_users
-
-                for r in users[1:]:
+                for r in cached_users[1:]:
                     try:
                         await context.bot.send_message(r[0], text)
                     except:
@@ -1331,7 +1411,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         logging.error(f"Runtime error: {e}")
         try:
-            await update.message.reply_text("Сталася помилка. Спробуйте ще раз.")
+            await update.message.reply_text("Сталася помилка.")
         except:
             pass
 
@@ -1346,6 +1426,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
