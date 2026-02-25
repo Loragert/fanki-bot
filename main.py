@@ -107,6 +107,28 @@ sheet_comment_pool = safe_google_call(
 ) if client else None
 
 # ==============================
+# CACHE
+# ==============================
+
+cached_users = []
+cached_tasks = []
+cached_templates = []
+cached_accounts = []
+cached_withdrawals = []
+cached_comments = []
+
+def refresh_cache():
+    global cached_users, cached_tasks, cached_templates
+    global cached_accounts, cached_withdrawals, cached_comments
+
+    cached_users = sheet_users.get_all_values()
+    cached_tasks = sheet_tasks.get_all_values()
+    cached_templates = sheet_templates.get_all_values()
+    cached_accounts = sheet_accounts.get_all_values()
+    cached_withdrawals = sheet_withdrawals.get_all_values()
+    cached_comments = sheet_comment_pool.get_all_values()
+
+# ==============================
 # STATE
 # ==============================
 
@@ -123,7 +145,7 @@ current_task = {}
 # ==============================
 
 def get_user_data(user_id):
-    users = sheet_users.get_all_values()
+    users = cached_users
     for i, row in enumerate(users, start=1):
         if row and row[0] == str(user_id):
             balance = int(row[3]) if len(row) > 3 and row[3] else 0
@@ -133,22 +155,22 @@ def get_user_data(user_id):
     return 0, 0, "Active"
 
 def update_user_balance(user_id, amount):
-    users = sheet_users.get_all_values()
+    users = cached_users
     for i, row in enumerate(users, start=1):
         if row and row[0] == str(user_id):
             balance = int(row[3]) if row[3] else 0
             sheet_users.update_cell(i, 4, str(balance + amount))
             return
-
+        
 def deduct_user_balance(user_id, amount):
-    users = sheet_users.get_all_values()
+    users = cached_users
     for i, row in enumerate(users, start=1):
         if row and row[0] == str(user_id):
             balance = int(row[3]) if row[3] else 0
             sheet_users.update_cell(i, 4, str(balance - amount))
             return
 def add_to_user_total(user_id, amount):
-    users = sheet_users.get_all_values()
+    users = cached_users
     for i, row in enumerate(users, start=1):
         if row and row[0] == str(user_id):
             total = int(row[4]) if len(row) > 4 and row[4] else 0
@@ -156,8 +178,8 @@ def add_to_user_total(user_id, amount):
             return
 
 def get_user_stats(user_id):
-    users = sheet_users.get_all_values()
-    tasks = sheet_tasks.get_all_values()
+    users = cached_users
+    tasks = cached_tasks
 
     reg_date = "-"
     comleted_tasks = 0
@@ -200,7 +222,7 @@ async def show_main_menu(update: Update):
         await update.message.reply_text("🛠 Адмін панель\nВітаємо в головному меню, оберіть пункт.", reply_markup=markup)
         return
 
-    users = sheet_users.get_all_values()
+    users = cached_users
     active_users = len(users) - 1 if len(users) > 1 else 0
 
 
@@ -308,7 +330,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             sheet_tasks.update_cell(row_index, 5, "Approved")
             sheet_tasks.update_cell(row_index, 9, "Paid")
 
-            templates = sheet_templates.get_all_values()
+            templates = cached_templates
             reward = 0
             for t in templates:
                 if t and t[0] == task_id:
@@ -317,7 +339,8 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             update_user_balance(user_id, reward)
             add_to_user_total(user_id, reward)
-
+            refresh_cache()
+           
             await context.bot.send_message(
                 chat_id=int(user_id),
                 text=f"✅ Завдання підтверджено. Нараховано {reward} Fanki."
@@ -328,13 +351,13 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif action == "task_reject":
 
             sheet_tasks.update_cell(row_index, 5, "Rejected")
-
+            
             if len(row) > 7 and row[7]:
-                comments = sheet_comment_pool.get_all_values()
+                comments = cached_comments
                 for i, c in enumerate(comments, start=1):
                     if c and c[1] == row[7]:
                         sheet_comment_pool.update_cell(i, 3, "TRUE")
-
+            refresh_cache()
             await context.bot.send_message(
                 chat_id=int(user_id),
                 text="❌ Завдання відхилено."
@@ -358,7 +381,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if action == "withdraw_approve":
 
             sheet_withdrawals.update_cell(row_index, 5, "Approved")
-
+            refresh_cache()
             await context.bot.send_message(
                 chat_id=int(user_id),
                 text="✅ Ваш вивід підтверджено."
@@ -369,9 +392,8 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif action == "withdraw_reject":
 
             sheet_withdrawals.update_cell(row_index, 5, "Rejected")
-
             update_user_balance(user_id, amount)
-
+            refresh_cache()
             await context.bot.send_message(
                 chat_id=int(user_id),
                 text="❌ Вивід відхилено. Баланс повернено."
@@ -396,7 +418,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if action == "account_approve":
 
             sheet_accounts.update_cell(row_index, 4, "Approved")
-
+            refresh_cache()
             await context.bot.send_message(
                 chat_id=int(user_id),
                 text=f"✅ Ваш акаунт {nickname} ({social}) підтверджено."
@@ -407,7 +429,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif action == "account_reject":
 
             sheet_accounts.update_cell(row_index, 4, "Rejected")
-
+            refresh_cache()
             await context.bot.send_message(
                 chat_id=int(user_id),
                 text=f"❌ Ваш акаунт {nickname} ({social}) відхилено."
@@ -439,10 +461,12 @@ def build_app():
 # ==============================
 
 async def send_next_task(update: Update, user_id: str):
-    templates = sheet_templates.get_all_values()
-    tasks = sheet_tasks.get_all_values()
-    comments = sheet_comment_pool.get_all_values()
-    accounts = sheet_accounts.get_all_values()
+    refresh_cache()
+
+    templates = cached_templates
+    tasks = cached_tasks
+    comments = cached_comments
+    accounts = cached_accounts
 
     account_name = user_selected_account.get(user_id)
 
@@ -489,7 +513,7 @@ async def send_next_task(update: Update, user_id: str):
                 and t[0] == str(user_id)
                 and t[3] == task_id
                 and t[4] == "Approved"
-                and today in t[5]
+                and t[5].startswith(today)
             ):
                 user_today_count += 1
 
@@ -593,7 +617,20 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     username = update.effective_user.username or update.effective_user.first_name
     text = update.message.text if update.message.text else ""
     now = datetime.now().strftime("%d.%m.%Y %H:%M")
+    balance, total, status = get_user_data(user_id)
 
+    if status == "Banned":
+        await update.message.reply_text(
+        "🚫 Ваш акаунт заблоковано адміністрацією."
+        )
+        return
+
+    if status == "Under Review":
+        await update.message.reply_text(
+        "⏳ Ваш акаунт тимчасово на перевірці."
+        )
+        return
+    
     if text in ["⬅️ Назад", "Назад", "/cancel"]:
         user_state.pop(user_id, None)
         admin_state.pop(user_id, None)
@@ -620,14 +657,14 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         user_state.pop(user_id, None)
 
     state = user_state.get(user_id)
-    accounts = sheet_accounts.get_all_values()
+    accounts = cached_accounts
     if state == "await_accept" and text == "Приймаю":
 
-        users = sheet_users.get_all_values()
+        users = cached_users
 
         if not any(r and r[0] == str(user_id) for r in users):
             sheet_users.append_row([user_id, username, now, "0", "0", "Active"])
-
+            refresh_cache()
         user_state[user_id] = None
 
         await show_main_menu(update)
@@ -711,8 +748,9 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
              "Pending",
              now]
         )
+        refresh_cache()
 
-        accounts = sheet_accounts.get_all_values()
+        accounts = cached_accounts
         row_index = len(accounts)
 
         keyboard = InlineKeyboardMarkup([
@@ -865,6 +903,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             task.get("comment", "") or "",
             ""
         ])
+        
 
         if task["comment_row_index"]:
             sheet_comment_pool.update_cell(
@@ -872,8 +911,8 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
                 3,
                 "FALSE"
             )
-
-        tasks = sheet_tasks.get_all_values()
+        refresh_cache()
+        tasks = cached_tasks
         row_index = len(tasks)
 
         keyboard = InlineKeyboardMarkup([
@@ -929,7 +968,7 @@ async def handle_withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await show_main_menu(update)
         return True
 
-    withdrawals = sheet_withdrawals.get_all_values()
+    withdrawals = cached_withdrawals
 
     # --- START WITHDRAW ---
     if text == "Вивід":
@@ -1049,8 +1088,9 @@ async def handle_withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Pending",
             now
         ])
+        refresh_cache()
 
-        withdrawals = sheet_withdrawals.get_all_values()
+        withdrawals = cached_withdrawals
         row_index = len(withdrawals)
 
         keyboard = InlineKeyboardMarkup([
@@ -1102,10 +1142,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 return
 
             if text == "📊 Статистика":
+                refresh_cache()
 
-                users = sheet_users.get_all_values()
-                tasks = sheet_tasks.get_all_values()
-                withdrawals = sheet_withdrawals.get_all_values()
+                users = cached_users
+                tasks = cached_tasks
+                withdrawals = cached_withdrawals
 
                 total_balance = 0
 
@@ -1172,6 +1213,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         update_user_balance(target_id, amount)
                     else:
                         deduct_user_balance(target_id, abs(amount))
+                    refresh_cache()
 
                     await update.message.reply_text("Баланс змінено.")
                     admin_state[user_id] = None
@@ -1185,9 +1227,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             if admin_state.get(user_id) == "broadcast":
 
-                users = sheet_users.get_all_values()
+                users = cached_users
 
-                for r in users:
+                for r in users[1:]:
                     try:
                         await context.bot.send_message(r[0], update.message.text)
                     except:
@@ -1214,6 +1256,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 if __name__ == "__main__":
+    refresh_cache()
+
     app = build_app()
 
     app.add_handler(MessageHandler(filters.ALL, handle_message))
@@ -1221,6 +1265,9 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
+
+
 
 
 
