@@ -1405,55 +1405,34 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     admin_state[user_id] = None
                     return
 
+            if text == "📋 Завдання":
+                await handle_user_message(update, context)
+                return
+
+            if text == "💸 Виводи":
+                handled = await handle_withdraw(update, context)
+                if handled:
+                return
+
             if text == "📢 Розсилка":
 
                 admin_state[user_id] = "broadcast"
                 await update.message.reply_text("Введіть текст:")
                 return
 
-            if (admin_state.get(user_id) == "broadcast" 
-            and text not in [
-                      "📋 Завдання",
-                      "💸 Виводи",
-                      "📊 Статистика",
-                      "💰 Змінити баланс",
-                      "🔒 Бан користувача",
-                      "📢 Розсилка",
-                      "⬅️ Назад"
-                ]
-               ):
+            if admin_state.get(user_id) == "broadcast":
 
                 users = cached_users
 
                 for r in users[1:]:
                     try:
-                        await context.bot.send_message(r[0], update.message.text)
+                        await context.bot.send_message(r[0], text)
                     except:
                         pass
 
-            await update.message.reply_text("Розсилка завершена.")
-            admin_state[user_id] = None
-            return
-
-
-        # ===== ВИВОДИ =====
-        handled = await handle_withdraw(update, context)
-        if handled:
-            return
-
-
-        # ===== ЗВИЧАЙНА ЛОГІКА КОРИСТУВАЧА =====
-        await handle_user_message(update, context)
-
-
-    except Exception as e:
-        logging.error(f"Runtime error: {e}")
-        try:
-            await update.message.reply_text(
-                "Сталася помилка. Спробуйте ще раз."
-            )
-        except:
-            pass
+               await update.message.reply_text("Розсилка завершена.")
+               admin_state[user_id] = None
+               return
 
 
 
@@ -1467,6 +1446,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
