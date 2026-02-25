@@ -1412,7 +1412,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if text == "💸 Виводи":
                 handled = await handle_withdraw(update, context)
                 if handled:
-                return
+                    return
 
             if text == "📢 Розсилка":
 
@@ -1446,6 +1446,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
