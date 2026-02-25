@@ -205,6 +205,20 @@ def get_user_stats(user_id):
 
 async def show_main_menu(update: Update):
     user_id = update.effective_user.id
+    balance, total, status = get_user_data(user_id)
+
+    if status == "Banned":
+        await update.message.reply_text(
+        "🚫 Ваш акаунт заблоковано адміністрацією."
+        )
+        return
+
+    if status == "Under Review":
+        await update.message.reply_text(
+        "⏳ Ваш акаунт тимчасово на перевірці."
+        )
+        return
+
 
     if user_id == ADMIN_ID:
         markup = ReplyKeyboardMarkup(
@@ -1265,6 +1279,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
