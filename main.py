@@ -1264,7 +1264,6 @@ async def handle_withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ==============================
 # MESSAGE ROUTER
 # ==============================
-
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user_id = update.effective_user.id
@@ -1284,126 +1283,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         user_id = update.effective_user.id
+        text = update.message.text if update.message.text else ""
 
+        # ================= ADMIN =================
         if is_admin(user_id):
-
-            text = update.message.text if update.message.text else ""
 
             if text in ["⬅️ Назад", "Назад"]:
                 admin_state.pop(user_id, None)
                 await show_main_menu(update)
                 return
-
-            if text == "📊 Статистика":
-                refresh_cache()
-
-                users = cached_users
-                tasks = cached_tasks
-                withdrawals = cached_withdrawals
-
-                total_balance = 0
-
-                for r in users[1:]:  # пропускаємо заголовок
-                    if len(r) > 3:   # перевіряємо що колонка існує
-                        value = r[3].strip()
-
-                        if value.isdigit():
-                            total_balance += int(value)
-
-                total_earned = 0
-                for r in users[1:]:
-                    if len(r) > 4:
-                        value = r[4].strip()
-                        if value.isdigit():
-                            total_earned += int(value) 
-
-                pending_tasks = sum(
-                    1 for r in tasks
-                    if len(r) > 4 and r[4] == "Pending"
-                )
-
-                pending_withdraws = sum(
-                    1 for r in withdrawals
-                    if len(r) > 4 and r[4] == "Pending"
-                )
-                user_count = max(len(users) - 1,0)
-
-                await update.message.reply_text(
-                    f"👥 Користувачів: {user_count}\n"
-                    f"💰 Сума балансів: {total_balance}\n"
-                    f"📈 Всього зароблено: {total_earned}\n"
-                    f"📋 Pending задач: {pending_tasks}\n"
-                    f"💸 Pending виводів: {pending_withdraws}"
-                )
-                return
-
-            if text == "🔒 Бан користувача":
-                admin_state[user_id] = "await_ban_user_id"
-                await update.message.reply_text("Введіть ID користувача для блокування:")
-                return
-
-
-            if admin_state.get(user_id) == "await_ban_user_id":
-
-                target_id = text.strip()
-
-    # оновлюємо кеш
-                refresh_cache()
-
-                found = False
-
-                for i, row in enumerate(cached_users, start=1):
-                    if row and row[0] == target_id:
-                        sheet_users.update_cell(i, 6, "Banned")
-                        found = True
-                        break
-
-                if not found:
-                    await update.message.reply_text("Користувача не знайдено.")
-                    return
-
-                log_admin_action(user_id, "BAN", target_id, "Manual ban from admin panel")
-                refresh_cache()
-
-                await update.message.reply_text(f"🔴 Користувач {target_id} заблокований.")
-                admin_state[user_id] = None
-                return
-
-
-            if text == "💰 Змінити баланс":
-
-                admin_state[user_id] = "await_user_id"
-                await update.message.reply_text("Введіть ID користувача:")
-                return
-
-            if admin_state.get(user_id) == "await_user_id":
-
-                admin_state[user_id] = ("await_amount", text)
-                await update.message.reply_text("Введіть суму (+500 або -300):")
-                return
-
-            if isinstance(admin_state.get(user_id), tuple):
-
-                state_name, target_id = admin_state[user_id]
-                target_id = int(target_id) 
-
-                if state_name == "await_amount":
-
-                    try:
-                        amount = int(update.message.text)
-                    except:
-                        await update.message.reply_text("Введіть число.")
-                        return
-
-                    if amount >= 0:
-                        update_user_balance(target_id, amount)
-                    else:
-                        deduct_user_balance(target_id, abs(amount))
-                    refresh_cache()
-
-                    await update.message.reply_text("Баланс змінено.")
-                    admin_state[user_id] = None
-                    return
 
             if text == "📋 Завдання":
                 await handle_user_message(update, context)
@@ -1415,7 +1303,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     return
 
             if text == "📢 Розсилка":
-
                 admin_state[user_id] = "broadcast"
                 await update.message.reply_text("Введіть текст:")
                 return
@@ -1434,6 +1321,20 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 admin_state[user_id] = None
                 return
 
+        # ================= USER =================
+        handled = await handle_withdraw(update, context)
+        if handled:
+            return
+
+        await handle_user_message(update, context)
+
+    except Exception as e:
+        logging.error(f"Runtime error: {e}")
+        try:
+            await update.message.reply_text("Сталася помилка. Спробуйте ще раз.")
+        except:
+            pass
+
 
 if __name__ == "__main__":
     refresh_cache()
@@ -1445,6 +1346,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
