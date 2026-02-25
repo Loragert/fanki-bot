@@ -1413,31 +1413,38 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             if admin_state.get(user_id) == "broadcast":
 
-                users = cached_users
+            users = cached_users
 
-                for r in users[1:]:
-                    try:
-                        await context.bot.send_message(r[0], update.message.text)
-                    except:
-                        pass
+            for r in users[1:]:
+                try:
+                    await context.bot.send_message(r[0], update.message.text)
+                except:
+                    pass
 
-                 await update.message.reply_text("Розсилка завершена.")
-                 admin_state[user_id] = None
-                     return
+            await update.message.reply_text("Розсилка завершена.")
+            admin_state[user_id] = None
+            return
 
-                 handled = await handle_withdraw(update, context)
-                 if handled:
-                     return
-                     await handle_user_message(update, context)
 
-                                    except Exception as e:
-                                        logging.error(f"Runtime error: {e}")
-                                        try:
-                                            await update.message.reply_text(
-                                                "Сталася помилка. Спробуйте ще раз."
-                                            )
-                                        except:
-                                            pass
+        # ===== ВИВОДИ =====
+        handled = await handle_withdraw(update, context)
+        if handled:
+            return
+
+
+        # ===== ЗВИЧАЙНА ЛОГІКА КОРИСТУВАЧА =====
+        await handle_user_message(update, context)
+
+
+    except Exception as e:
+        logging.error(f"Runtime error: {e}")
+        try:
+            await update.message.reply_text(
+                "Сталася помилка. Спробуйте ще раз."
+            )
+        except:
+            pass
+
 
 
 if __name__ == "__main__":
@@ -1450,6 +1457,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
