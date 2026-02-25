@@ -1434,6 +1434,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 admin_state[user_id] = None
                 return
 
+                     except Exception as e:
+                         logging.error(f"Runtime error: {e}")
+                         try:
+                             await update.message.reply_text("Сталася помилка. Спробуйте ще раз.")
+                         except:
+                             pass
+
 
 
 if __name__ == "__main__":
@@ -1446,6 +1453,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
