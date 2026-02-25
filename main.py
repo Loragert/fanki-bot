@@ -1426,18 +1426,18 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 return
 
          handled = await handle_withdraw(update, context)
-        if handled:
-            return
-            await handle_user_message(update, context)
+                 if handled:
+                     return
+                     await handle_user_message(update, context)
 
-    except Exception as e:
-        logging.error(f"Runtime error: {e}")
-        try:
-            await update.message.reply_text(
+         except Exception as e:
+             logging.error(f"Runtime error: {e}")
+             try:
+                 await update.message.reply_text(
                 "Сталася помилка. Спробуйте ще раз."
-            )
-        except:
-            pass
+             )
+             except:
+             pass
 
 
 if __name__ == "__main__":
@@ -1450,6 +1450,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
