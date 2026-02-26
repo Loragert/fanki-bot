@@ -632,7 +632,7 @@ async def send_next_task(update: Update, user_id: str):
 
     done_tasks = [
         r[3] for r in tasks
-        if r and len(r) > 3 and r[2] == account_name
+        if ( r and len(r) > 3 and r[0] == str(user_id) and r[2] == account_name )
     ]
 
     for template in templates:
@@ -877,15 +877,15 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             await update.message.reply_text("Занадто коротке ім’я.")
             return
 
-            if any(row and row[2].lower() == text.lower() for row in accounts):
-                await update.message.reply_text("Це ім’я вже зареєстроване.")
-                return
-
-            user_selected_account[user_id] = text
-            user_state[user_id] = "await_link"
-
-            await update.message.reply_text("Введіть посилання на профіль:")
+        if any(row and row[2].lower() == text.lower() for row in accounts):
+            await update.message.reply_text("Це ім’я вже зареєстроване.")
             return
+
+        user_selected_account[user_id] = text
+        user_state[user_id] = "await_link"
+
+        await update.message.reply_text("Введіть посилання на профіль:")
+        return
 
     if state == "await_link":
 
@@ -1438,4 +1438,5 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
