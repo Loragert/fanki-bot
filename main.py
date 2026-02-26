@@ -450,140 +450,172 @@ async def safe_edit_caption(query, text):
 # ==============================
 
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
 
-    if update.effective_user.id not in ADMIN_ID:
+    query = update.callback_query
+    if not query:
         return
 
-    data = query.data.split("|")
-    action = data[0]
-    row_index = int(data[1])
+    await query.answer()
 
-    # =========================
-    # TASK
-    # =========================
-    if action.startswith("task"):
+    # --- БЕЗПЕЧНЕ читання callback_data ---
+    data_raw = query.data or ""
 
-        row = sheet_tasks.row_values(row_index)
+    if "|" not in data_raw:
+        return
 
-        if len(row) < 5 or row[4] != "Pending":
-            return
+    parts = data_raw.split("|")
 
-        user_id = row[0]
-        task_id = row[3]
+    if len(parts) < 2:
+        return
 
-        if action == "task_approve":
+    action = parts[0]
 
-            sheet_tasks.update_cell(row_index, 5, "Approved")
-            sheet_tasks.update_cell(row_index, 9, "Paid")
+    try:
+        row_index = int(parts[1])
+    except:
+        return
 
-            templates = cached_templates
-            reward = 0
-            for t in templates:
-                if t and t[0] == task_id:
-                    reward = int(t[4])
-                    break
+    # --- БЕЗПЕЧНА перевірка row_index ---
+    if row_index <= 0:
+        return
 
-            update_user_balance(user_id, reward)
-            add_to_user_total(user_id, reward)
-            refresh_cache()
-           
-            await context.bot.send_message(
-                chat_id=int(user_id),
-                text=f"✅ Завдання підтверджено. Нараховано {reward} Fanki."
-            )
+    try:
 
-            await safe_edit_caption(query, "✅ Підтверджено")
+        # =========================
+        # ACCOUNT
+        # =========================
+        if action in ["account_approve", "account_reject"]:
 
-        elif action == "task_reject":
+            row = sheet_accounts.row_values(row_index)
 
-            sheet_tasks.update_cell(row_index, 5, "Rejected")
-            
-            if len(row) > 7 and row[7]:
-                comments = cached_comments
-                for i, c in enumerate(comments, start=1):
-                    if c and c[1] == row[7]:
-                        sheet_comment_pool.update_cell(i, 3, "TRUE")
-            refresh_cache()
-            await context.bot.send_message(
-                chat_id=int(user_id),
-                text="❌ Завдання відхилено."
-            )
+            if not row or len(row) < 4:
+                return
 
-            await safe_edit_caption(query, "❌ Відхилено")
+            if row[3] != "Pending":
+                return
 
-    # =========================
-    # WITHDRAW
-    # =========================
-    elif action.startswith("withdraw"):
+            user_id = row[0]
+            social = row[1]
+            nickname = row[2]
 
-        row = sheet_withdrawals.row_values(row_index)
+            if action == "account_approve":
 
-        if len(row) < 5 or row[4] != "Pending":
-            return
+                sheet_accounts.update_cell(row_index, 4, "Approved")
+                refresh_cache()
 
-        user_id = row[0]
-        amount = int(row[3])
+                await context.bot.send_message(
+                    chat_id=int(user_id),
+                    text=f"✅ Ваш акаунт {nickname} ({social}) підтверджено."
+                )
 
-        if action == "withdraw_approve":
+                await query.edit_message_text("✅ Акаунт підтверджено")
 
-            sheet_withdrawals.update_cell(row_index, 5, "Approved")
-            refresh_cache()
-            await context.bot.send_message(
-                chat_id=int(user_id),
-                text="✅ Ваш вивід підтверджено."
-            )
+            else:
 
-            await safe_edit_caption(query, "✅ Вивід підтверджено")
+                sheet_accounts.update_cell(row_index, 4, "Rejected")
+                refresh_cache()
 
-        elif action == "withdraw_reject":
+                await context.bot.send_message(
+                    chat_id=int(user_id),
+                    text=f"❌ Ваш акаунт {nickname} ({social}) відхилено."
+                )
 
-            sheet_withdrawals.update_cell(row_index, 5, "Rejected")
-            update_user_balance(user_id, amount)
-            refresh_cache()
-            await context.bot.send_message(
-                chat_id=int(user_id),
-                text="❌ Вивід відхилено. Баланс повернено."
-            )
+                await query.edit_message_text("❌ Акаунт відхилено")
 
-            await safe_edit_caption(query, "❌ Вивід відхилено")
+        # =========================
+        # TASK
+        # =========================
+        elif action in ["task_approve", "task_reject"]:
 
-    # =========================
-    # ACCOUNT
-    # =========================
-    elif action.startswith("account"):
+            row = sheet_tasks.row_values(row_index)
 
-        row = sheet_accounts.row_values(row_index)
+            if not row or len(row) < 5:
+                return
 
-        if len(row) < 4 or row[3] != "Pending":
-            return
+            if row[4] != "Pending":
+                return
 
-        user_id = row[0]
-        social = row[1]
-        nickname = row[2]
+            user_id = row[0]
+            task_id = row[3]
 
-        if action == "account_approve":
+            if action == "task_approve":
 
-            sheet_accounts.update_cell(row_index, 4, "Approved")
-            refresh_cache()
-            await context.bot.send_message(
-                chat_id=int(user_id),
-                text=f"✅ Ваш акаунт {nickname} ({social}) підтверджено."
-            )
+                sheet_tasks.update_cell(row_index, 5, "Approved")
+                sheet_tasks.update_cell(row_index, 9, "Paid")
 
-            await query.edit_message_text("✅ Акаунт підтверджено")
+                reward = 0
+                for t in cached_templates:
+                    if t and t[0] == task_id:
+                        reward = int(t[4])
+                        break
 
-        elif action == "account_reject":
+                update_user_balance(user_id, reward)
+                add_to_user_total(user_id, reward)
 
-            sheet_accounts.update_cell(row_index, 4, "Rejected")
-            refresh_cache()
-            await context.bot.send_message(
-                chat_id=int(user_id),
-                text=f"❌ Ваш акаунт {nickname} ({social}) відхилено."
-            )
+                refresh_cache()
 
-            await query.edit_message_text("❌ Акаунт відхилено")
+                await context.bot.send_message(
+                    chat_id=int(user_id),
+                    text=f"✅ Завдання підтверджено. Нараховано {reward} Fanki."
+                )
+
+                await query.edit_message_caption("✅ Підтверджено")
+
+            else:
+
+                sheet_tasks.update_cell(row_index, 5, "Rejected")
+                refresh_cache()
+
+                await context.bot.send_message(
+                    chat_id=int(user_id),
+                    text="❌ Завдання відхилено."
+                )
+
+                await query.edit_message_caption("❌ Відхилено")
+
+        # =========================
+        # WITHDRAW
+        # =========================
+        elif action in ["withdraw_approve", "withdraw_reject"]:
+
+            row = sheet_withdrawals.row_values(row_index)
+
+            if not row or len(row) < 5:
+                return
+
+            if row[4] != "Pending":
+                return
+
+            user_id = row[0]
+            amount = int(row[3])
+
+            if action == "withdraw_approve":
+
+                sheet_withdrawals.update_cell(row_index, 5, "Approved")
+                refresh_cache()
+
+                await context.bot.send_message(
+                    chat_id=int(user_id),
+                    text="✅ Ваш вивід підтверджено."
+                )
+
+                await query.edit_message_text("✅ Вивід підтверджено")
+
+            else:
+
+                sheet_withdrawals.update_cell(row_index, 5, "Rejected")
+                update_user_balance(user_id, amount)
+                refresh_cache()
+
+                await context.bot.send_message(
+                    chat_id=int(user_id),
+                    text="❌ Вивід відхилено. Баланс повернено."
+                )
+
+                await query.edit_message_text("❌ Вивід відхилено")
+
+    except Exception as e:
+        logging.error(f"Callback error: {e}")
        
 
 # ==============================
@@ -1433,6 +1465,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
