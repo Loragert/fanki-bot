@@ -877,7 +877,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             await update.message.reply_text("Занадто коротке ім’я.")
             return
 
-        if any(row and row[2].lower() == text.lower() for row in accounts):
+        if any(row and len(row) > 2 and row[2] and row[2].lower() == text.lower() for row in accounts):
             await update.message.reply_text("Це ім’я вже зареєстроване.")
             return
 
@@ -1438,5 +1438,6 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
