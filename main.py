@@ -61,7 +61,7 @@ def safe_google_call(func, *args, **kwargs):
         return None
                                    
 
-logging.basicConfig(level=logging.ERROR)
+logging.basicConfig(level=logging.INFO)
 
 # ==============================
 # GOOGLE SHEETS
@@ -828,7 +828,11 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         return await handle_withdraw(update, context)
 
     print("STATE DEBAG:", user_id, user_state.get(user_id), "| TEXT:", text)
-
+    print("HANDLE_MESSAGE TRIGGERED")
+    print("USER:", user_id)
+    print("TEXT:", text)
+    print("STATE:", user_state.get(user_id))
+    
     state = user_state.get(user_id)
     accounts = cached_accounts or []
     if state == "await_accept" and text == "Приймаю":
@@ -905,6 +909,8 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         if len(text) < 2:
             await update.message.reply_text("Занадто коротке ім’я.")
             return
+
+        accounts = cached_accounts[1:] if len(cached_accounts) > 1 else []
 
         if any(row and len(row) > 2 and row[2] and row[2].lower() == text.lower() for row in accounts):
             await update.message.reply_text("Це ім’я вже зареєстроване.")
@@ -1462,6 +1468,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
