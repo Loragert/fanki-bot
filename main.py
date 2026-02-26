@@ -867,63 +867,70 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     if state == "await_nick":
 
-        if not re.match(r'^[A-Za-z0-9_.]+$', text):
-            await update.message.reply_text("Невірний формат ніку.")
-            return
-
-        if any(row and row[2].lower() == text.lower() for row in accounts):
-            await update.message.reply_text("Цей нік вже зареєстрований.")
-            return
-
-        if user_selected_social[user_id] == "Google Maps":
-            if any(row and row[0] == str(user_id)
-                   and row[1] == "Google Maps" for row in accounts):
-                await update.message.reply_text(
-                    "Google Maps можна додати тільки один акаунт."
-                )
-                return
-
-        sheet_accounts.append_row(
-            [user_id,
-        user_selected_social[user_id],
-             text,
-             "Pending",
-             now]
-        )
-        refresh_cache()
-
-        accounts = cached_accounts
-        row_index = len(accounts)
-
-        keyboard = InlineKeyboardMarkup([
-            [
-                InlineKeyboardButton(
-                    "✅ Підтвердити",
-        callback_data=f"account_approve|{row_index}"
-          ),
-                InlineKeyboardButton(
-                    "❌ Відхилити",
-        callback_data=f"account_reject|{row_index}"
-          )
-           ]
-        ])
-
-        await context.bot.send_message(
-                  ADMIN_ID[0],
-                  f"Новий акаунт\n\n"
-                  f"User ID: {user_id}\n"
-                  f"Соцмережа: {user_selected_social[user_id]}\n"
-                  f"Нік: {text}",
-                  reply_markup=keyboard
-        )
-
-        user_state[user_id] = None
-
-        await update.message.reply_text(
-                   "Акаунт відправлено на модерацію."
-        )
-
+    # дозволяємо будь-які символи (бо Facebook ім’я)
+    if len(text) < 2:
+        await update.message.reply_text("Занадто коротке ім’я.")
         return
+
+    if any(row and row[2].lower() == text.lower() for row in accounts):
+        await update.message.reply_text("Це ім’я вже зареєстроване.")
+        return
+
+    user_selected_account[user_id] = text
+    user_state[user_id] = "await_link"
+
+    await update.message.reply_text("Введіть посилання на профіль:")
+    return
+
+    if state == "await_link":
+
+    link = text.strip()
+
+    if not link.startswith("http"):
+        await update.message.reply_text("Посилання має починатися з http або https.")
+        return
+
+    sheet_accounts.append_row([
+        user_id,
+        user_selected_social[user_id],
+        user_selected_account[user_id],
+        "Pending",
+        now,
+        link
+    ])
+
+    refresh_cache()
+
+    accounts = cached_accounts
+    row_index = len(accounts)
+
+    keyboard = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton(
+                "✅ Підтвердити",
+                callback_data=f"account_approve|{row_index}"
+            ),
+            InlineKeyboardButton(
+                "❌ Відхилити",
+                callback_data=f"account_reject|{row_index}"
+            )
+        ]
+    ])
+
+    await context.bot.send_message(
+        ADMIN_ID[0],
+        f"Новий акаунт\n\n"
+        f"User ID: {user_id}\n"
+        f"Соцмережа: {user_selected_social[user_id]}\n"
+        f"Ім'я: {user_selected_account[user_id]}\n"
+        f"Посилання: {link}",
+        reply_markup=keyboard
+    )
+
+    user_state[user_id] = None
+
+    await update.message.reply_text("Акаунт відправлено на модерацію.")
+    return
 
     if text == "Завдання":
 
@@ -1426,6 +1433,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
