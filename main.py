@@ -872,11 +872,10 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
 
     if state == "await_nick":
-
-    # дозволяємо будь-які символи (бо Facebook ім’я)
-            if len(text) < 2:
-                await update.message.reply_text("Занадто коротке ім’я.")
-                return
+                # дозволяємо будь-які символи (бо Facebook ім’я)
+        if len(text) < 2:
+            await update.message.reply_text("Занадто коротке ім’я.")
+            return
 
             if any(row and row[2].lower() == text.lower() for row in accounts):
                 await update.message.reply_text("Це ім’я вже зареєстроване.")
@@ -1439,3 +1438,4 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
