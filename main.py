@@ -895,7 +895,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             await update.message.reply_text("Оберіть соцмережу кнопкою")
             return
         user_selected_social[user_id] = text
-        user_state[user_id]
+        user_state[user_id] = "await_nick" 
 
         await update.message.reply_text("Введіть нік без @:")
         return
@@ -911,7 +911,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             return
 
         user_selected_account[user_id] = text
-        user_state[user_id] = "await_nick"
+        user_state[user_id] = "await_link"
 
         await update.message.reply_text("Введіть посилання на профіль:")
         return
@@ -1462,6 +1462,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
