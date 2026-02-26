@@ -125,12 +125,18 @@ def refresh_cache():
     global cached_users, cached_tasks, cached_templates
     global cached_accounts, cached_withdrawals, cached_comments
 
-    cached_users = sheet_users.get_all_values()
-    cached_tasks = sheet_tasks.get_all_values()
-    cached_templates = sheet_templates.get_all_values()
-    cached_accounts = sheet_accounts.get_all_values()
-    cached_withdrawals = sheet_withdrawals.get_all_values()
-    cached_comments = sheet_comment_pool.get_all_values()
+    if sheet_users:
+        cached_users = sheet_users.get_all_values()
+    if sheet_tasks:
+        cached_tasks = sheet_tasks.get_all_values()
+    if sheet_templates:
+        cached_templates = sheet_templates.get_all_values()
+    if sheet_accounts:
+        cached_accounts = sheet_accounts.get_all_values()
+    if sheet_withdrawals:
+        cached_withdrawals = sheet_withdrawals.get_all_values()
+    if sheet_comment_pool:
+        cached_comments = sheet_comment_pool.get_all_values()
 
 # ==============================
 # STATE
@@ -275,7 +281,7 @@ async def handle_admin_callback(update: Update, context: ContextTypes.DEFAULT_TY
     # ---------------- USER PROFILE ACTIONS ----------------
     elif data.startswith("admin_ban_"):
         target_id = data.split("_")[-1]
-        refresh_cache()
+        
 
         for i, row in enumerate(cached_users, start=1):
             if row and row[0] == target_id:
@@ -289,7 +295,7 @@ async def handle_admin_callback(update: Update, context: ContextTypes.DEFAULT_TY
 
     elif data.startswith("admin_unban_"):
         target_id = data.split("_")[-1]
-        refresh_cache()
+        
 
         for i, row in enumerate(cached_users, start=1):
             if row and row[0] == target_id:
@@ -308,7 +314,7 @@ async def handle_admin_callback(update: Update, context: ContextTypes.DEFAULT_TY
 
     # ---------------- STATS ----------------
     elif data == "admin_stats":
-        refresh_cache()
+        
 
         total_users = len(cached_users) - 1
         active = sum(1 for r in cached_users if len(r) > 5 and r[5] == "Active")
@@ -603,7 +609,7 @@ def build_app():
 # ==============================
 
 async def send_next_task(update: Update, user_id: str):
-    refresh_cache()
+    
 
     templates = cached_templates
     tasks = cached_tasks
@@ -868,69 +874,69 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     if state == "await_nick":
 
     # дозволяємо будь-які символи (бо Facebook ім’я)
-    if len(text) < 2:
-        await update.message.reply_text("Занадто коротке ім’я.")
-        return
+            if len(text) < 2:
+                await update.message.reply_text("Занадто коротке ім’я.")
+                return
 
-    if any(row and row[2].lower() == text.lower() for row in accounts):
-        await update.message.reply_text("Це ім’я вже зареєстроване.")
-        return
+            if any(row and row[2].lower() == text.lower() for row in accounts):
+                await update.message.reply_text("Це ім’я вже зареєстроване.")
+                return
 
-    user_selected_account[user_id] = text
-    user_state[user_id] = "await_link"
+            user_selected_account[user_id] = text
+            user_state[user_id] = "await_link"
 
-    await update.message.reply_text("Введіть посилання на профіль:")
-    return
+            await update.message.reply_text("Введіть посилання на профіль:")
+            return
 
     if state == "await_link":
 
-    link = text.strip()
+        link = text.strip()
 
-    if not link.startswith("http"):
-        await update.message.reply_text("Посилання має починатися з http або https.")
+        if not link.startswith("http"):
+            await update.message.reply_text("Посилання має починатися з http або https.")
+            return
+
+        sheet_accounts.append_row([
+            user_id,
+            user_selected_social[user_id],
+            user_selected_account[user_id],
+            "Pending",
+            now,
+            link
+        ])
+
+        refresh_cache()
+
+        accounts = cached_accounts
+        row_index = len(accounts)
+
+        keyboard = InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton(
+                    "✅ Підтвердити",
+                    callback_data=f"account_approve|{row_index}"
+                ),
+                InlineKeyboardButton(
+                    "❌ Відхилити",
+                    callback_data=f"account_reject|{row_index}"
+                )
+            ]
+        ])
+
+        await context.bot.send_message(
+            ADMIN_ID[0],
+            f"Новий акаунт\n\n"
+            f"User ID: {user_id}\n"
+            f"Соцмережа: {user_selected_social[user_id]}\n"
+            f"Ім'я: {user_selected_account[user_id]}\n"
+            f"Посилання: {link}",
+            reply_markup=keyboard
+        )
+
+        user_state[user_id] = None
+
+        await update.message.reply_text("Акаунт відправлено на модерацію.")
         return
-
-    sheet_accounts.append_row([
-        user_id,
-        user_selected_social[user_id],
-        user_selected_account[user_id],
-        "Pending",
-        now,
-        link
-    ])
-
-    refresh_cache()
-
-    accounts = cached_accounts
-    row_index = len(accounts)
-
-    keyboard = InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton(
-                "✅ Підтвердити",
-                callback_data=f"account_approve|{row_index}"
-            ),
-            InlineKeyboardButton(
-                "❌ Відхилити",
-                callback_data=f"account_reject|{row_index}"
-            )
-        ]
-    ])
-
-    await context.bot.send_message(
-        ADMIN_ID[0],
-        f"Новий акаунт\n\n"
-        f"User ID: {user_id}\n"
-        f"Соцмережа: {user_selected_social[user_id]}\n"
-        f"Ім'я: {user_selected_account[user_id]}\n"
-        f"Посилання: {link}",
-        reply_markup=keyboard
-    )
-
-    user_state[user_id] = None
-
-    await update.message.reply_text("Акаунт відправлено на модерацію.")
-    return
 
     if text == "Завдання":
 
@@ -1078,7 +1084,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         ])
 
         await context.bot.send_photo(
-            ADMIN_ID,
+            ADMIN_ID[0],
             file_id,
             caption=f"ID: {user_id}\nTask: {task['task_id']}",
             reply_markup=keyboard
@@ -1299,7 +1305,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             # 📊 Статистика
             if text == "📊 Статистика":
-                refresh_cache()
+                
 
                 users = cached_users
                 tasks = cached_tasks
@@ -1335,9 +1341,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 return
 
             if admin_state.get(user_id) == "await_ban_id":
-                refresh_cache()
+                
                 target_id = text.strip()
-
+                
                 for i, row in enumerate(cached_users, start=1):
                     if row and row[0] == target_id:
                         sheet_users.update_cell(i, 6, "Banned")
@@ -1433,52 +1439,3 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
