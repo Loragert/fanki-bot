@@ -1412,10 +1412,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 return
 
         # ================= USER =================
-        handled = await handle_withdraw(update, context)
-        if handled:
-            return
-
+        
         await handle_user_message(update, context)
 
     except Exception as e:
@@ -1436,6 +1433,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
