@@ -827,15 +827,6 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         user_state.pop(user_id, None)
         return await handle_withdraw(update, context)
 
-    if text in [
-        "Реєстрація акаунту",
-        "Мій кабінет",
-        "Інформація про бот",
-        "Завдання",
-        "Підтримка"
-    ]:
-        user_state.pop(user_id, None)
-
     state = user_state.get(user_id)
     accounts = cached_accounts
     if state == "await_accept" and text == "Приймаю":
@@ -1465,6 +1456,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
