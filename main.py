@@ -1102,8 +1102,6 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         await send_next_task(update, user_id)
         return
 
-    await show_main_menu(update)
-
 # ==============================
 # WITHDRAW (USER SIDE)
 # ==============================
@@ -1438,6 +1436,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
