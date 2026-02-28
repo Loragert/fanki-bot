@@ -543,8 +543,8 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 sheet_tasks.update_cell(row_index, 5, "Approved")
                 sheet_tasks.update_cell(row_index, 9, "Paid")
                 now = datetime.now().strftime("%d.%m.%Y %H:%M")
-                sheet_tasks.update_cell(row_index, 10,now)
-                sheet_tasks.update_cell(row_index, 10, "TEST")
+                sheet_tasks.update_cell(row_index, 10, now)
+                
 
                 reward = 0
                 for t in cached_templates:
@@ -1476,6 +1476,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
