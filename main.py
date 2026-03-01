@@ -696,7 +696,7 @@ async def send_next_task(update: Update, user_id: str):
         if task_profile !=account_profile_link:
             continue
 
-        if task_status not in ["pending", "approved", "reject"]:
+        if task_status not in ["pending", "approved", "rejected"]:
             continue
 
         client_id_done = None
@@ -735,7 +735,6 @@ async def send_next_task(update: Update, user_id: str):
             continue
 
         client_id = template[8] if len(template) > 8 else None
-        if social_network == "Google Maps":
             if client_id and str(client_id) in done_task_ids:
                 continue
 
@@ -1554,6 +1553,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
