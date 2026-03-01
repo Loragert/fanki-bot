@@ -675,7 +675,14 @@ async def send_next_task(update: Update, user_id: str):
         if not template or len(template) < 8:
             continue
 
-        task_id, sn, task_type, link, reward, max_per_day, max_total, active = template
+        task_id = template[0]
+        sn = template[1]
+        task_type = template[2]
+        link = template[3]
+        reward = template[4]
+        max_per_day = template[5]
+        max_total = template[6]
+        active = template[7]
 
         if sn != social_network or active != "TRUE" or task_id in done_tasks:
             continue
@@ -1476,6 +1483,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
