@@ -689,10 +689,10 @@ async def send_next_task(update: Update, user_id: str):
         if not r:
             continue
 
-        if len(r) < 12:
+        if len(r) < 11:
             continue
 
-        task_profile = str(r[11]).strip().lower()
+        task_profile = str(r[10]).strip().lower()
         task_status = str(r[5]).strip().lower()
         task_id_done = str(r[3]).strip()
 
@@ -1534,6 +1534,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
