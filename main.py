@@ -651,6 +651,8 @@ async def send_next_task(update: Update, user_id: str):
     comments = cached_comments
     accounts = cached_accounts
 
+    print("HEADERS:", templates[0])
+
     account_name = user_selected_account.get(user_id)
 
     account_row = next(
@@ -1476,7 +1478,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             await
 
-        update.messege.reply_text(str(e))
+            update.message.reply_text(str(e))
         except:
             pass
        
@@ -1497,6 +1499,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
