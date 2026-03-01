@@ -776,6 +776,7 @@ async def send_next_task(update: Update, user_id: str):
             "reward": reward,
             "comment": comment_text,
             "comment_row_index": comment_row_index
+            "profile_link": account_profile link
         }
 
         if task_type.lower() == "comment":
@@ -1117,7 +1118,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             task["social"],
             user_selected_account[user_id],
             task["task_id"],
-            task["link"],
+            task["link"].strip().lower(),
             "Pending",
             now,
             file_id,
@@ -1507,6 +1508,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
