@@ -655,6 +655,12 @@ async def send_next_task(update: Update, user_id: str):
 
     print("HEADERS:", templates[0])
 
+    if user_id not in user_selected_social:
+        await update.message.reply_text("Помилка: соцмережа не вибрана.")
+        return
+
+    social_network = user_selected_social[user_id]
+
     account_name = user_selected_account.get(user_id)
 
     account_row = next(
@@ -666,8 +672,6 @@ async def send_next_task(update: Update, user_id: str):
     if not account_row:
         await update.message.reply_text("Акаунт не підтверджений.")
         return
-
-    social_network = user_selected_social.get(user_id)
 
     done_tasks = [
         r[3] for r in tasks
@@ -1499,6 +1503,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
