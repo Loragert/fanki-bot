@@ -697,8 +697,14 @@ async def send_next_task(update: Update, user_id: str):
         print("ACCOUNT:", account_profile_link)
         print("STATUS:", task_status)
         
-        if task_profile !=account_profile_link:
-            continue
+        # якщо є profile_link — перевіряємо по ньому
+        if task_profile:
+            if task_profile != account_profile_link:
+                continue
+        else:
+    # fallback для старих записів (де profile_link ще не записувався)
+            if r[0] != str(user_id):
+                continue
 
         if task_status not in ["pending", "approved", "rejected"]:
             continue
@@ -1548,6 +1554,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
