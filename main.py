@@ -673,9 +673,9 @@ async def send_next_task(update: Update, user_id: str):
         await update.message.reply_text("Акаунт не підтверджений.")
         return
 
-    done_tasks = [
-        r[3] for r in tasks
-        if ( r and len(r) > 3 and r[0] == str(user_id) and r[2] == account_name )
+    done_links = [
+        r[4].strip().lower() for r in tasks
+        if ( r and len(r) > 4 and r[0] == str(user_id) and r[2] == account_name)
     ]
 
     for template in templates[1:]:
@@ -703,7 +703,7 @@ async def send_next_task(update: Update, user_id: str):
         if active.strip().upper() != "TRUE":
             continue
 
-        if task_id in done_tasks:
+        if link.strip().lover() in done_links:
             continue
 
 
@@ -1115,6 +1115,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             task["social"],
             user_selected_account[user_id],
             task["task_id"],
+            task["link"],
             "Pending",
             now,
             file_id,
@@ -1503,6 +1504,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
