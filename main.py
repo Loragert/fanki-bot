@@ -703,15 +703,7 @@ async def send_next_task(update: Update, user_id: str):
         if task_status not in ["pending", "approved", "rejected"]:
             continue
 
-        client_id_done = None
-        for t in templates:
-            if t and t[0] == task_id_done:
-                if len(t) > 8:
-                    client_id_done = t[8]
-                break
-
-        if client_id_done:
-            done_task_ids.add(str(client_id_done))
+        done_task_ids.add(task_id_done)
             
     for template in templates[1:]:
 
@@ -738,9 +730,8 @@ async def send_next_task(update: Update, user_id: str):
         if active.strip().upper() != "TRUE":
             continue
 
-        client_id = template[8] if len(template) > 8 else None
-            if client_id and str(client_id) in done_task_ids:
-                continue
+        if task_id in done_task_ids:
+            continue
 
 
 # ==============================
@@ -1557,6 +1548,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
