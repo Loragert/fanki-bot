@@ -776,7 +776,7 @@ async def send_next_task(update: Update, user_id: str):
             "reward": reward,
             "comment": comment_text,
             "comment_row_index": comment_row_index
-            "profile_link": account_profile link
+            "profile_link": account_profile_link
         }
 
         if task_type.lower() == "comment":
@@ -1508,6 +1508,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
