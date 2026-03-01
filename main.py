@@ -678,10 +678,21 @@ async def send_next_task(update: Update, user_id: str):
     print("DEBUG ACCOUNT ROW:", account_row)
     print("DEBUG PROFILE LINK:", account_profile_link)
 
-    done_task_ids = [
-        str(r[3]).strip() for r in tasks
-        if ( r and len(r) > 11 and r[11].strip().lower() == account_profile_link and r[5].strip().lower() in ["pending", "approved"])
-    ]
+    done_task_ids = []
+    for r in tasks:
+        if not r:
+            continue
+
+        if len(r) < 12:
+            continue
+
+        task_profile = str(r[11]).strip().lower()
+        task_status = str(r[5]).strip().lower()
+        task_id_done = str(r[3]).strip()
+        
+        if task_profile == account_profile_link and task_status in ["pending", "approved"]:
+            done_task_ids.append(task_id_done)
+        
 
     for template in templates[1:]:
 
@@ -1517,6 +1528,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
