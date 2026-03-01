@@ -675,10 +675,7 @@ async def send_next_task(update: Update, user_id: str):
 
     account_profile_link = account_row[5].strip().lower()
 
-    print("DEBUG ACCOUNT ROW:", account_row)
-    print("DEBUG PROFILE LINK:", account_profile_link)
-
-    done_task_ids = []
+    done_task_ids = set()
     for r in tasks:
         print("ROW LENGTH:", len(r))
         print("FULL ROW:", r)
@@ -699,7 +696,7 @@ async def send_next_task(update: Update, user_id: str):
         if task_profile !=account_profile_link:
             continue
 
-        if task_status not in ["approved"]:
+        if task_status not in ["pending", "approved", "reject"]:
             continue
 
         client_id_done = None
@@ -710,7 +707,7 @@ async def send_next_task(update: Update, user_id: str):
                 break
 
         if client_id_done:
-            done_task_ids.append(client_id_done)
+            done_task_ids.add(str(client_id_done))
             
     for template in templates[1:]:
 
@@ -739,7 +736,7 @@ async def send_next_task(update: Update, user_id: str):
 
         client_id = template[8] if len(template) > 8 else None
         if social_network == "Google Maps":
-            if client_id and client_id in done_task_ids:
+            if client_id and str(client_id) in done_task_ids:
                 continue
 
 
@@ -1557,6 +1554,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
