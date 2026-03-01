@@ -985,6 +985,15 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             await update.message.reply_text("Посилання має починатися з http або https.")
             return
 
+        link_clean = link.strip().lower()
+        accounts = cached_accounts[1:] if len(cached_accounts) > 1 else []
+        for row in accounts:
+            if row and len(row) > 5:
+                existing_link = row[5].strip().lower()
+                if existing_link == link_clean:
+                    await update.message.reply_text("Цей профіль вже зареєстрований.")
+                    return
+
         sheet_accounts.append_row([
             user_id,
             user_selected_social[user_id],
@@ -1534,6 +1543,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
