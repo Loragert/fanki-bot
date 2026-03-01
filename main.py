@@ -703,7 +703,7 @@ async def send_next_task(update: Update, user_id: str):
         if active.strip().upper() != "TRUE":
             continue
 
-        if link.strip().lover() in done_links:
+        if link.strip().lower() in done_links:
             continue
 
 
@@ -1504,6 +1504,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
