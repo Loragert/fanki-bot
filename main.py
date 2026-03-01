@@ -663,7 +663,7 @@ async def send_next_task(update: Update, user_id: str):
         await update.message.reply_text("Акаунт не підтверджений.")
         return
 
-    social_network = account_row[1]
+    social_network = user_selected_social.get(user_id)
 
     done_tasks = [
         r[3] for r in tasks
@@ -686,10 +686,16 @@ async def send_next_task(update: Update, user_id: str):
         max_total = template[6]
         active = template[7]
 
+        if not sn or not social_network:
+            continue
+
         if sn.strip().lower() != social_network.strip().lower():
             continue
 
         if active.strip().upper() != "TRUE":
+            continue
+
+        if task_id in done_tasks:
             continue
 
 
@@ -1488,6 +1494,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
