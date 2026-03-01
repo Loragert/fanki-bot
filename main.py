@@ -676,8 +676,8 @@ async def send_next_task(update: Update, user_id: str):
     account_profile_link = account_row[3].strip().lower()
 
     done_links = [
-        r[4].strip().lower() for r in tasks
-        if ( r and len(r) > 11 and r[11].strip().lower() == account_profile_link)
+        r[3] for r in tasks
+        if ( r and len(r) > 11 and r[11].strip().lower() == account_profile_link and r[5] in ["Pending", "Approved"])
     ]
 
     for template in templates[1:]:
@@ -705,7 +705,7 @@ async def send_next_task(update: Update, user_id: str):
         if active.strip().upper() != "TRUE":
             continue
 
-        if link in done_links:
+        if task_id in done_task_ids:
             continue
 
 
@@ -806,13 +806,16 @@ async def send_next_task(update: Update, user_id: str):
             [["✅ Виконано"], ["⬅️ Назад"]],
             resize_keyboard=True
         )
+        
 
         await update.message.reply_text(
             "Після виконання натисніть кнопку нижче.",
             reply_markup=markup
         )
-
+        user_state[user_id] = "working"
         return
+
+    user_state[user_id] = "select_account"
 
     await update.message.reply_text(
         "Немає доступних завдань.",
@@ -1511,6 +1514,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
