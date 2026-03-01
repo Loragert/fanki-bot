@@ -1105,6 +1105,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 
         file_id = update.message.photo[-1].file_id
         task = current_task.get(user_id)
+        
 
         if not task:
             await update.message.reply_text(
@@ -1112,6 +1113,8 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             )
             user_state[user_id] = "working"
             return
+
+        account_profile_link = task.get("profile_link","").strip().lower()
 
         sheet_tasks.append_row([
             user_id,
@@ -1508,6 +1511,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
