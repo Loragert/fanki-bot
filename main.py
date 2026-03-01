@@ -696,10 +696,22 @@ async def send_next_task(update: Update, user_id: str):
         task_status = str(r[5]).strip().lower()
         task_id_done = str(r[3]).strip()
 
-        if task_profile == account_profile_link and task_status in ["pending", "approved"]:
-            done_task_ids.append(task_id_done)
-        
+        if task_profile !=account_profile_link:
+            continue
 
+        if task_status not in ["approved"]:
+            continue
+
+        client_id_done = None
+        for t in templates:
+            if t and t[0] == task_id_done:
+                if len(t) > 8:
+                    client_id_done = t[8]
+                break
+
+        if client_id_done:
+            done_task_ids.append(client_id_done)
+            
     for template in templates[1:]:
 
         if not template or len(template) < 8:
@@ -725,8 +737,10 @@ async def send_next_task(update: Update, user_id: str):
         if active.strip().upper() != "TRUE":
             continue
 
-        if str(task_id).strip() in done_task_ids:
-            continue
+        client_id = template[8] if len(template) > 8 else None
+        if social_network == "Google Maps":
+            if client_id and client_id in done_task_ids:
+                continue
 
 
 # ==============================
@@ -1543,6 +1557,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
