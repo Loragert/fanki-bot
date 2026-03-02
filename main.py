@@ -639,30 +639,26 @@ def build_app():
     app.add_error_handler(error_handler)
     return app
 
-# ==============================
+# =============================
 # SEND NEXT TASK
-# ==============================
-
+# =============================
 async def send_next_task(update: Update, user_id: str):
 
     refresh_cache()
-    
 
     templates = cached_templates
     tasks = cached_tasks
     comments = cached_comments
     accounts = cached_accounts
 
-    print("HEADERS:", templates[0])
-
     if user_id not in user_selected_social:
         await update.message.reply_text("Помилка: соцмережа не вибрана.")
         return
 
     social_network = user_selected_social[user_id]
-
     account_name = user_selected_account.get(user_id)
 
+    # 🔹 Перевірка підтвердженого акаунту
     account_row = next(
         (r for r in accounts if r and r[0] == str(user_id)
          and r[2] == account_name and r[3] == "Approved"),
@@ -673,46 +669,32 @@ async def send_next_task(update: Update, user_id: str):
         await update.message.reply_text("Акаунт не підтверджений.")
         return
 
-    account_profile_link = account_row[5].strip().lower()
+    # =====================================================
+    # ✅ ФОРМУЄМО СПИСОК ВЖЕ ВИКОНАНИХ task_id ДЛЯ USER
+    # =====================================================
 
     done_task_ids = set()
+
     for r in tasks:
-        print("ROW LENGTH:", len(r))
-        print("FULL ROW:", r)
-        print("COLUMN 10:", r[10] if len(r) > 10 else "NO 10")
-        print("COLUMN 11:", r[11] if len(r) > 11 else "NO 11")
-        print("---------------")
+        if (
+            r
+            and len(r) > 5
+            and r[0] == str(user_id)
+            and r[5] in ["Pending", "Approved", "Rejected"]
+        ):
+            done_task_ids.add(str(r[3]).strip())
 
-        if not r:
-            continue
+    # =====================================================
+    # 🔎 ПОШУК ДОСТУПНОГО ЗАВДАННЯ
+    # =====================================================
 
-        if len(r) < 11:
-            continue
-
-        task_profile = str(r[10]).strip().lower()
-        task_status = str(r[5]).strip().lower()
-        task_id_done = str(r[3]).strip()
-        
-        # якщо є profile_link — перевіряємо по ньому
-        if task_profile:
-            if task_profile != account_profile_link:
-                continue
-        else:
-    # fallback для старих записів (де profile_link ще не записувався)
-            if r[0] != str(user_id):
-                continue
-
-        if task_status not in ["pending", "approved", "rejected"]:
-            continue
-
-        done_task_ids.add(task_id_done)
-            
     for template in templates[1:]:
 
         if not template or len(template) < 8:
             continue
 
-        if not template[0].isdigit(): continue
+        if not template[0].isdigit():
+            continue
 
         task_id = template[0]
         sn = template[1]
@@ -723,25 +705,23 @@ async def send_next_task(update: Update, user_id: str):
         max_total = template[6]
         active = template[7]
 
-        if not sn or not social_network:
-            continue
-
+        # 🔹 соцмережа
         if sn.strip().lower() != social_network.strip().lower():
             continue
 
+        # 🔹 активність
         if active.strip().upper() != "TRUE":
             continue
 
+        # 🔹 вже виконував
         if task_id in done_task_ids:
             continue
 
-
-# ==============================
-# 🔹 ЛІМІТ НА КОРИСТУВАЧА В ДЕНЬ
-# ==============================
+        # =====================================================
+        # 🔹 ЛІМІТ НА КОРИСТУВАЧА В ДЕНЬ
+        # =====================================================
 
         today = datetime.now().strftime("%d.%m.%Y")
-
         user_today_count = 0
 
         for t in tasks:
@@ -758,25 +738,28 @@ async def send_next_task(update: Update, user_id: str):
         if max_per_day and user_today_count >= int(max_per_day):
             continue
 
-
-# ==============================
-# 🔹 ГЛОБАЛЬНИЙ ЛІМІТ
-# ==============================
+        # =====================================================
+        # 🔹 ГЛОБАЛЬНИЙ ЛІМІТ
+        # =====================================================
 
         total_used = 0
 
         for t in tasks:
             if (
                 t
-                and len(t) > 4
+                and len(t) > 5
                 and t[3] == task_id
-                and t[5] in ["Pending", "Approved"] 
+                and t[5] in ["Pending", "Approved"]
             ):
                 total_used += 1
 
         if max_total and total_used >= int(max_total):
             continue
-            
+
+        # =====================================================
+        # 🔹 КОМЕНТАР (якщо тип comment)
+        # =====================================================
+
         comment_text = ""
         comment_row_index = None
 
@@ -795,6 +778,10 @@ async def send_next_task(update: Update, user_id: str):
             comment_text = comment_row[1]
             comment_row_index = row_index
 
+        # =====================================================
+        # 🔹 ЗБЕРІГАЄМО АКТИВНЕ ЗАВДАННЯ
+        # =====================================================
+
         current_task[user_id] = {
             "task_id": task_id,
             "social": sn,
@@ -802,9 +789,12 @@ async def send_next_task(update: Update, user_id: str):
             "link": link,
             "reward": reward,
             "comment": comment_text,
-            "comment_row_index": comment_row_index, 
-            "profile_link": account_profile_link
+            "comment_row_index": comment_row_index
         }
+
+        # =====================================================
+        # 🔹 ВІДПРАВКА КОРИСТУВАЧУ
+        # =====================================================
 
         if task_type.lower() == "comment":
 
@@ -824,7 +814,7 @@ async def send_next_task(update: Update, user_id: str):
                 f"📋 Завдання\n"
                 f"Тип: {task_type}\n"
                 f"Посилання: {link}\n"
-                f"Нагорода: {reward} Fanki\n\n"
+                f"Нагорода: {reward} Fanki\n"
             )
 
             await update.message.reply_text(msg)
@@ -833,14 +823,18 @@ async def send_next_task(update: Update, user_id: str):
             [["✅ Виконано"], ["⬅️ Назад"]],
             resize_keyboard=True
         )
-        
 
         await update.message.reply_text(
             "Після виконання натисніть кнопку нижче.",
             reply_markup=markup
         )
+
         user_state[user_id] = "working"
         return
+
+    # =====================================================
+    # ❌ НІЧОГО НЕ ЗНАЙДЕНО
+    # =====================================================
 
     user_state[user_id] = "select_account"
 
@@ -848,6 +842,7 @@ async def send_next_task(update: Update, user_id: str):
         "Немає доступних завдань.",
         reply_markup=ReplyKeyboardMarkup([["⬅️ Назад"]], resize_keyboard=True)
     )
+
 
 # ==============================
 # USER MESSAGE HANDLER
@@ -1551,58 +1546,3 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
