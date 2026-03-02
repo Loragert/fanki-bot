@@ -814,12 +814,12 @@ async def send_next_task(update: Update, user_id: str):
 
             msg = (
                 f"📋 Завдання\n"
-                f"Тип: {task_type}\n"
-                f"Посилання: {link}\n"
+                f"Тип: {task_type}\n\n"
+                f"Посилання: \n{link}\n\n"
                 f"Нагорода: {reward} Fanki\n"
             )
 
-            await update.message.reply_text(repr(link)
+            await update.message.reply_text(msg)
 
         markup = ReplyKeyboardMarkup(
             [["✅ Виконано"], ["⬅️ Назад"]],
@@ -1543,6 +1543,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
