@@ -693,10 +693,6 @@ async def send_next_task(update: Update, user_id: str):
         task_status = str(r[5]).strip().lower()
         task_id_done = str(r[3]).strip()
         
-        print("PROFILE:", task_profile)
-        print("ACCOUNT:", account_profile_link)
-        print("STATUS:", task_status)
-        
         # якщо є profile_link — перевіряємо по ньому
         if task_profile:
             if task_profile != account_profile_link:
@@ -751,11 +747,11 @@ async def send_next_task(update: Update, user_id: str):
         for t in tasks:
             if (
                 t
-                and len(t) > 5
+                and len(t) > 6
                 and t[0] == str(user_id)
                 and t[3] == task_id
-                and t[4] == "Approved"
-                and t[5].startswith(today)
+                and t[5] == "Approved"
+                and t[6].startswith(today)
             ):
                 user_today_count += 1
 
@@ -774,7 +770,7 @@ async def send_next_task(update: Update, user_id: str):
                 t
                 and len(t) > 4
                 and t[3] == task_id
-                and t[4] in ["Pending", "Approved"] 
+                and t[5] in ["Pending", "Approved"] 
             ):
                 total_used += 1
 
@@ -1554,6 +1550,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
