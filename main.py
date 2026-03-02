@@ -801,7 +801,7 @@ async def send_next_task(update: Update, user_id: str):
         if task_type.lower() == "comment":
 
             msg = (
-                f"Посилання:\n{link}\n\n"
+                f"{link}\n\n"
                 f"Дія:\nЗалишити коментар\n"
                 f"-------------------------\n\n"
                 f"💵 Нагорода:\n{reward} Fanki"
@@ -815,7 +815,7 @@ async def send_next_task(update: Update, user_id: str):
             msg = (
                 f"📋 Завдання\n"
                 f"Тип: {task_type}\n\n"
-                f"Посилання: \n{link}\n\n"
+                f"{link}\n\n"
                 f"Нагорода: {reward} Fanki\n"
             )
 
@@ -1543,6 +1543,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
