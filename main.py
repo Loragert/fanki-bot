@@ -532,7 +532,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if not row or len(row) < 5:
                 return
 
-            if row[4] != "Pending":
+            if row[5] != "Pending":
                 return
 
             user_id = row[0]
@@ -540,7 +540,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             if action == "task_approve":
 
-                sheet_tasks.update_cell(row_index, 5, "Approved")
+                sheet_tasks.update_cell(row_index, 6, "Approved")
                 sheet_tasks.update_cell(row_index, 9, "Paid")
                 now = datetime.now().strftime("%d.%m.%Y %H:%M")
                 sheet_tasks.update_cell(row_index, 10, now)
@@ -566,7 +566,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             else:
 
-                sheet_tasks.update_cell(row_index, 5, "Rejected")
+                sheet_tasks.update_cell(row_index, 6, "Rejected")
                 refresh_cache()
 
                 await context.bot.send_message(
@@ -679,7 +679,7 @@ async def send_next_task(update: Update, user_id: str):
         if (
             r
             and len(r) > 5
-            and r[0] == str(user_id)
+            and str(r[0]).strip() == str(user_id).strip()
             and r[5] in ["Pending", "Approved", "Rejected"]
         ):
             done_task_ids.add(str(r[3]).strip())
@@ -884,11 +884,6 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         user_state.pop(user_id, None)
         return await handle_withdraw(update, context)
 
-    print("STATE DEBAG:", user_id, user_state.get(user_id), "| TEXT:", text)
-    print("HANDLE_MESSAGE TRIGGERED")
-    print("USER:", user_id)
-    print("TEXT:", text)
-    print("STATE:", user_state.get(user_id))
     
     state = user_state.get(user_id)
     accounts = cached_accounts or []
@@ -1546,3 +1541,4 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
