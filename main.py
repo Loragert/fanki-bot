@@ -674,7 +674,6 @@ async def send_next_task(update: Update, user_id: str):
         return
 
     account_profile_link = account_row[5].strip().lower()
-    tasks = tasks_shet.get_all_values()
 
     done_task_ids = set()
     for r in tasks:
@@ -1555,6 +1554,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
