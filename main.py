@@ -700,7 +700,7 @@ async def send_next_task(update: Update, user_id: str):
         task_id = template[0]
         sn = template[1]
         task_type = template[2]
-        link = template[3].strip().lower()
+        link = template[3].strip()
         reward = template[4]
         max_per_day = template[5]
         max_total = template[6]
@@ -1543,5 +1543,6 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
