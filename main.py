@@ -680,6 +680,7 @@ async def send_next_task(update: Update, user_id: str):
             r
             and len(r) > 5
             and str(r[0]).strip() == str(user_id).strip()
+            and str(r[2]).strip() == str(account_name).strip()
             and r[5] in ["Pending", "Approved", "Rejected"]
         ):
             done_task_ids.add(str(r[3]).strip())
@@ -728,8 +729,9 @@ async def send_next_task(update: Update, user_id: str):
             if (
                 t
                 and len(t) > 6
-                and t[0] == str(user_id)
-                and t[3] == task_id
+                and str(t[0]).strip() == str(user_id).strip()
+                and str(t[2]).strip() == str(account_name).strip()
+                and str(t[3]).strip() == str(task_id).strip()
                 and t[5] == "Approved"
                 and t[6].startswith(today)
             ):
@@ -1541,4 +1543,5 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
