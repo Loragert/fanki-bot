@@ -1203,6 +1203,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.message.reply_text(
             "Скрін відправлено на перевірку."
         )
+        current_task.pop(user_id, None)
 
         if task["social"] == "Google Maps":
             user_state[user_id] = None
@@ -1550,6 +1551,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
