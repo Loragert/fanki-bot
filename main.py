@@ -181,12 +181,12 @@ def is_admin(user_id):
 def log_admin_action(admin_id, action, target_user_id="", details=""):
     now = datetime.now().strftime("%d.%m.%Y %H:%M")
    # sheet_admin_logs.append_row([
-        now,
-        str(admin_id),
-        action,
-        str(target_user_id),
-        details
-    ])
+       # now,
+       # str(admin_id),
+       # action,
+       # str(target_user_id),
+        #details
+    #])
 
 
 async def show_admin_panel(update, context):
@@ -1505,6 +1505,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
