@@ -88,16 +88,16 @@ def refresh_cache():
 
    # if sheet_users:
        # cached_users = sheet_users.get_all_values()
-    if sheet_tasks:
-        cached_tasks = sheet_tasks.get_all_values()
-    if sheet_templates:
-        cached_templates = sheet_templates.get_all_values()
-    if sheet_accounts:
-        cached_accounts = sheet_accounts.get_all_values()
-    if sheet_withdrawals:
-        cached_withdrawals = sheet_withdrawals.get_all_values()
-    if sheet_comment_pool:
-        cached_comments = sheet_comment_pool.get_all_values()
+   # if sheet_tasks:
+      #  cached_tasks = sheet_tasks.get_all_values()
+   # if sheet_templates:
+       # cached_templates = sheet_templates.get_all_values()
+  #  if sheet_accounts:
+      #  cached_accounts = sheet_accounts.get_all_values()
+  #  if sheet_withdrawals:
+      #  cached_withdrawals = sheet_withdrawals.get_all_values()
+  #  if sheet_comment_pool:
+      #  cached_comments = sheet_comment_pool.get_all_values()
 
 # ==============================
 # STATE
@@ -180,7 +180,7 @@ def is_admin(user_id):
 
 def log_admin_action(admin_id, action, target_user_id="", details=""):
     now = datetime.now().strftime("%d.%m.%Y %H:%M")
-    sheet_admin_logs.append_row([
+   # sheet_admin_logs.append_row([
         now,
         str(admin_id),
         action,
@@ -447,7 +447,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # =========================
         if action in ["account_approve", "account_reject"]:
 
-            row = sheet_accounts.row_values(row_index)
+    #        row = sheet_accounts.row_values(row_index)
 
             if not row or len(row) < 4:
                 return
@@ -461,7 +461,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             if action == "account_approve":
 
-                sheet_accounts.update_cell(row_index, 4, "Approved")
+            #    sheet_accounts.update_cell(row_index, 4, "Approved")
                 refresh_cache()
 
                 await context.bot.send_message(
@@ -473,7 +473,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             else:
 
-                sheet_accounts.update_cell(row_index, 4, "Rejected")
+             #   sheet_accounts.update_cell(row_index, 4, "Rejected")
                 refresh_cache()
 
                 await context.bot.send_message(
@@ -488,7 +488,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # =========================
         elif action in ["task_approve", "task_reject"]:
 
-            row = sheet_tasks.row_values(row_index)
+          #  row = sheet_tasks.row_values(row_index)
 
             if not row or len(row) < 5:
                 return
@@ -501,10 +501,10 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             if action == "task_approve":
 
-                sheet_tasks.update_cell(row_index, 6, "Approved")
-                sheet_tasks.update_cell(row_index, 10, "Paid")
+               # sheet_tasks.update_cell(row_index, 6, "Approved")
+               # sheet_tasks.update_cell(row_index, 10, "Paid")
                 now = datetime.now().strftime("%d.%m.%Y %H:%M")
-                sheet_tasks.update_cell(row_index, 11, now)
+               # sheet_tasks.update_cell(row_index, 11, now)
                 
 
                 reward = 0
@@ -527,7 +527,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             else:
 
-                sheet_tasks.update_cell(row_index, 6, "Rejected")
+               # sheet_tasks.update_cell(row_index, 6, "Rejected")
                 refresh_cache()
 
                 await context.bot.send_message(
@@ -542,7 +542,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # =========================
         elif action in ["withdraw_approve", "withdraw_reject"]:
 
-            row = sheet_withdrawals.row_values(row_index)
+           # row = sheet_withdrawals.row_values(row_index)
 
             if not row or len(row) < 5:
                 return
@@ -555,7 +555,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             if action == "withdraw_approve":
 
-                sheet_withdrawals.update_cell(row_index, 5, "Approved")
+               # sheet_withdrawals.update_cell(row_index, 5, "Approved")
                 refresh_cache()
 
                 await context.bot.send_message(
@@ -567,7 +567,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             else:
 
-                sheet_withdrawals.update_cell(row_index, 5, "Rejected")
+                #sheet_withdrawals.update_cell(row_index, 5, "Rejected")
                 update_user_balance(user_id, amount)
                 refresh_cache()
 
@@ -954,7 +954,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
                     await update.message.reply_text("Цей профіль вже зареєстрований.")
                     return
 
-        sheet_accounts.append_row([
+      #  sheet_accounts.append_row([
             user_id,
             user_selected_social[user_id],
             user_selected_account[user_id],
@@ -1108,7 +1108,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 
         account_profile_link = task.get("profile_link","").strip().lower()
 
-        sheet_tasks.append_row([
+  #      sheet_tasks.append_row([
             user_id,
             task["social"],
             user_selected_account[user_id],
@@ -1125,7 +1125,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         
 
         if task["comment_row_index"]:
-            sheet_comment_pool.update_cell(
+   #         sheet_comment_pool.update_cell(
                 task["comment_row_index"],
                 3,
                 "FALSE"
@@ -1298,7 +1298,7 @@ async def handle_withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         deduct_user_balance(user_id, amount)
 
-        sheet_withdrawals.append_row([
+      #  sheet_withdrawals.append_row([
             user_id,
             update.effective_user.username or "",
             user_binance_id[user_id],
@@ -1505,6 +1505,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
