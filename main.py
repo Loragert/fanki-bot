@@ -86,8 +86,8 @@ def refresh_cache():
     global cached_users, cached_tasks, cached_templates
     global cached_accounts, cached_withdrawals, cached_comments
 
-    if sheet_users:
-        cached_users = sheet_users.get_all_values()
+   # if sheet_users:
+       # cached_users = sheet_users.get_all_values()
     if sheet_tasks:
         cached_tasks = sheet_tasks.get_all_values()
     if sheet_templates:
@@ -130,7 +130,7 @@ def update_user_balance(user_id, amount):
     for i, row in enumerate(users, start=1):
         if row and row[0] == str(user_id):
             balance = int(row[3]) if row[3] else 0
-            sheet_users.update_cell(i, 4, str(balance + amount))
+           # sheet_users.update_cell(i, 4, str(balance + amount))
             return
         
 def deduct_user_balance(user_id, amount):
@@ -138,14 +138,14 @@ def deduct_user_balance(user_id, amount):
     for i, row in enumerate(users, start=1):
         if row and row[0] == str(user_id):
             balance = int(row[3]) if row[3] else 0
-            sheet_users.update_cell(i, 4, str(balance - amount))
+           # sheet_users.update_cell(i, 4, str(balance - amount))
             return
 def add_to_user_total(user_id, amount):
     users = cached_users
     for i, row in enumerate(users, start=1):
         if row and row[0] == str(user_id):
             total = int(row[4]) if len(row) > 4 and row[4] else 0
-            sheet_users.update_cell(i, 5, str(total + amount))
+            #sheet_users.update_cell(i, 5, str(total + amount))
             return
 
 def get_user_stats(user_id):
@@ -246,7 +246,7 @@ async def handle_admin_callback(update: Update, context: ContextTypes.DEFAULT_TY
 
         for i, row in enumerate(cached_users, start=1):
             if row and row[0] == target_id:
-                sheet_users.update_cell(i, 6, "Banned")
+               # sheet_users.update_cell(i, 6, "Banned")
                 break
 
         log_admin_action(admin_id, "BAN", target_id, "Manual ban")
@@ -260,7 +260,7 @@ async def handle_admin_callback(update: Update, context: ContextTypes.DEFAULT_TY
 
         for i, row in enumerate(cached_users, start=1):
             if row and row[0] == target_id:
-                sheet_users.update_cell(i, 6, "Active")
+               # sheet_users.update_cell(i, 6, "Active")
                 break
 
         log_admin_action(admin_id, "UNBAN", target_id, "Manual unban")
@@ -855,7 +855,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         users = cached_users
 
         if not any(r and r[0] == str(user_id) for r in users):
-            sheet_users.append_row([user_id, username, now, "0", "0", "Active"])
+           # sheet_users.append_row([user_id, username, now, "0", "0", "Active"])
             refresh_cache()
         user_state[user_id] = None
 
@@ -1409,7 +1409,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 
                 for i, row in enumerate(cached_users, start=1):
                     if row and row[0] == target_id:
-                        sheet_users.update_cell(i, 6, "Banned")
+                       # sheet_users.update_cell(i, 6, "Banned")
                         await update.message.reply_text("Користувача заблоковано.")
                         admin_state[user_id] = None
                         refresh_cache()
@@ -1505,6 +1505,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
