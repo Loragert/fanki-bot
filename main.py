@@ -20,8 +20,7 @@ from telegram.ext import (
     ContextTypes,
     filters
 )
-import gspread
-from oauth2client.service_account import ServiceAccountCredentials
+
 from supabase import create_client
 
 # ==============================
@@ -71,52 +70,6 @@ def safe_google_call(func, *args, **kwargs):
 
 logging.basicConfig(level=logging.INFO)
 
-# ==============================
-# GOOGLE SHEETS
-# ==============================
-
-scope = [
-    "https://spreadsheets.google.com/feeds",
-    "https://www.googleapis.com/auth/drive"
-]
-
-creds = safe_google_call(
-    lambda: ServiceAccountCredentials.from_json_keyfile_name(
-        "/workspace/creds.json", scope
-    )
-)
-
-client = safe_google_call(
-    lambda: gspread.authorize(creds)
-) if creds else None
-
-sheet_users = safe_google_call(
-    lambda: client.open("FankiBot").worksheet("Users")
-) if client else None
-
-sheet_accounts = safe_google_call(
-    lambda: client.open("FankiBot").worksheet("Accounts")
-) if client else None
-
-sheet_withdrawals = safe_google_call(
-    lambda: client.open("FankiBot").worksheet("Withdrawals")
-) if client else None
-
-sheet_templates = safe_google_call(
-    lambda: client.open("FankiBot").worksheet("TaskTemplates")
-) if client else None
-
-sheet_tasks = safe_google_call(
-    lambda: client.open("FankiBot").worksheet("Tasks")
-) if client else None
-
-sheet_comment_pool = safe_google_call(
-    lambda: client.open("FankiBot").worksheet("Comment_Pool")
-) if client else None
-
-sheet_admin_logs = safe_google_call(
-    lambda:client.open("FankiBot").worksheet("AdminLogs")
-) if client else None
 
 # ==============================
 # CACHE
@@ -1552,6 +1505,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
