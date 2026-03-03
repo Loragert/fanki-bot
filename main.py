@@ -22,6 +22,7 @@ from telegram.ext import (
 )
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
+from supabase import create_client
 
 # ==============================
 # CONFIG
@@ -31,6 +32,13 @@ import os
 TOKEN = os.getenv("BOT_TOKEN")
 if not TOKEN:
     raise ValueError("BOT_TOKEN не знайдено!")
+
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+if not SUPABASE_URL or not SUPABASE_KEY:
+    raise ValueError("SUPABASE credetials not found!")
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+
 ADMIN_ID = [6699691752]
 def notify_admin_async(error_text):
     try:
@@ -1544,6 +1552,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
