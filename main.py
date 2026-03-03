@@ -1121,7 +1121,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         #])
         
 
-        if task["comment_row_index"]:
+       # if task["comment_row_index"]:
    #         sheet_comment_pool.update_cell(
               #  task["comment_row_index"],
               #  3,
@@ -1505,6 +1505,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
