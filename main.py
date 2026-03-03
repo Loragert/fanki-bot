@@ -1145,6 +1145,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         #])
 
         await context.bot.send_photo(
+            pass
             ADMIN_ID[0],
             file_id,
             caption=f"ID: {user_id}\nTask: {task['task_id']}",
@@ -1152,11 +1153,13 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         )
 
         await update.message.reply_text(
+            pass
             "Скрін відправлено на перевірку."
         )
         current_task.pop(user_id, None)
 
         if task["social"] == "Google Maps":
+            pass
             user_state[user_id] = None
             await show_main_menu(update)
             return
@@ -1502,6 +1505,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
