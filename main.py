@@ -1109,27 +1109,27 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         account_profile_link = task.get("profile_link","").strip().lower()
 
   #      sheet_tasks.append_row([
-            user_id,
-            task["social"],
-            user_selected_account[user_id],
-            task["task_id"],
-            task["link"].strip(),
-            "Pending",
-            now,
-            file_id,
-            "",
-            task.get("comment", "") or "",
-            "",
-            account_profile_link
+            #user_id,
+          #  task["social"],
+          #  user_selected_account[user_id],
+           # task["task_id"],
+          #  task["link"].strip(),
+         #   "Pending",
+         #   now,
+          #  file_id,
+         #   "",
+          #  task.get("comment", "") or "",
+         #   "",
+         #   account_profile_link
         #])
         
 
         if task["comment_row_index"]:
    #         sheet_comment_pool.update_cell(
-                task["comment_row_index"],
-                3,
-                "FALSE"
-            )
+              #  task["comment_row_index"],
+              #  3,
+              #  "FALSE"
+           # )
         refresh_cache()
         tasks = cached_tasks
         row_index = len(tasks)
@@ -1299,13 +1299,13 @@ async def handle_withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
         deduct_user_balance(user_id, amount)
 
       #  sheet_withdrawals.append_row([
-            user_id,
-            update.effective_user.username or "",
-            user_binance_id[user_id],
-            str(amount),
-            "Pending",
-            now
-        ])
+          #  user_id,
+          #  update.effective_user.username or "",
+         #   user_binance_id[user_id],
+           # str(amount),
+         #   "Pending",
+          #  now
+      #  ])
         refresh_cache()
 
         withdrawals = cached_withdrawals
@@ -1505,6 +1505,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
