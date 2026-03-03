@@ -1131,8 +1131,8 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
               #  "FALSE"
            # )
         #refresh_cache()
-        tasks = cached_tasks
-        row_index = len(tasks)
+       # tasks = cached_tasks
+        #row_index = len(tasks)
 
         keyboard = InlineKeyboardMarkup([
             [
@@ -1505,6 +1505,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
