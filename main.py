@@ -1130,7 +1130,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
               #  3,
               #  "FALSE"
            # )
-        refresh_cache()
+        #refresh_cache()
         tasks = cached_tasks
         row_index = len(tasks)
 
@@ -1505,6 +1505,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
