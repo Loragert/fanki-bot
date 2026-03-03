@@ -1134,18 +1134,18 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
        # tasks = cached_tasks
         #row_index = len(tasks)
 
-        keyboard = InlineKeyboardMarkup([
-            [
-                InlineKeyboardButton(
-                    "✅ Підтвердити",
-                    callback_data=f"task_approve|{row_index}"
-                ),
-                InlineKeyboardButton(
-                    "❌ Відхилити",
-                    callback_data=f"task_reject|{row_index}"
-                )
-            ]
-        ])
+       # keyboard = InlineKeyboardMarkup([
+            #[
+               # InlineKeyboardButton(
+                  #  "✅ Підтвердити",
+                  #  callback_data=f"task_approve|{row_index}"
+               # ),
+               # InlineKeyboardButton(
+                  #  "❌ Відхилити",
+                   # callback_data=f"task_reject|{row_index}"
+               # )
+          #  ]
+        #])
 
         await context.bot.send_photo(
             ADMIN_ID[0],
@@ -1505,6 +1505,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
