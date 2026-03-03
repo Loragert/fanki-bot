@@ -86,18 +86,15 @@ def refresh_cache():
     global cached_users, cached_tasks, cached_templates
     global cached_accounts, cached_withdrawals, cached_comments
 
-   # if sheet_users:
-       # cached_users = sheet_users.get_all_values()
-   # if sheet_tasks:
-      #  cached_tasks = sheet_tasks.get_all_values()
-   # if sheet_templates:
-       # cached_templates = sheet_templates.get_all_values()
-  #  if sheet_accounts:
-      #  cached_accounts = sheet_accounts.get_all_values()
-  #  if sheet_withdrawals:
-      #  cached_withdrawals = sheet_withdrawals.get_all_values()
-  #  if sheet_comment_pool:
-      #  cached_comments = sheet_comment_pool.get_all_values()
+    try:
+        cached_users = supabase.table("Users").select("*").execute().data or []
+        cached_tasks = supabase.table("Tasks").select("*").execute().data or []
+        cached_templates = supabase.table("TaskTemplates").select("*").execute().data or []
+        cached_accounts = supabase.table("Accounts").select("*").execute().data or []
+        cached_withdrawals = supabase.table("Withdrawals").select("*").execute().data or []
+        cached_comments = supabase.table("CommentPool").select("*").execute().data or []
+    except Exception as e:
+        print("Supabase refresh error:", e)
 
 # ==============================
 # STATE
@@ -1491,7 +1488,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 if __name__ == "__main__":
-    # refresh_cache()
+     refresh_cache()
 
     app = build_app()
 
@@ -1505,6 +1502,7 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
