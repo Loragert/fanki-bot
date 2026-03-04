@@ -1539,4 +1539,3 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
-
