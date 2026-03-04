@@ -742,6 +742,7 @@ async def send_next_task(update: Update, user_id: str):
             "comment": comment_text,
             "comment_row_id": comment_row_id
         }
+        done_links.add(link)
 
         # ==========================
         # SEND TASK
@@ -1542,4 +1543,5 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
