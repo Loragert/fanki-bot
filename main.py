@@ -1122,10 +1122,9 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             "account": user_selected_account[user_id],
             "task_id": task["task_id"],
             "link": task["link"],
-            "status": "Pending",
             "assign_date": now,
             "screenfile_id": file_id,
-            "comment_text": task.get("comment", "")
+            "comment_text": "Pending"
         }).execute()
 
         task_record_id = res.data[0]["id"]
@@ -1539,5 +1538,6 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
