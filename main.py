@@ -608,6 +608,8 @@ async def send_next_task(update: Update, user_id: str):
     comments = supabase.table("Comment_Pool").select("*").execute().data
     accounts = supabase.table("Accounts").select("*").execute().data
 
+    print("DEBAG TASKS:",tasks)
+
     if user_id not in user_selected_social:
         await update.message.reply_text("Помилка: соцмережа не вибрана.")
         return
@@ -643,6 +645,8 @@ async def send_next_task(update: Update, user_id: str):
             and r.get("status") in ["Pending", "Approved", "Rejected"]
         ):
             done_task_ids.add(str(r.get("task_id")))
+
+    print("DEBAG ROW:" r)
     # ==========================
     # SEARCH AVAILABLE TASK
     # ==========================
@@ -1542,6 +1546,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
