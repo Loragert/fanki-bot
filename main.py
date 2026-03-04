@@ -1,5 +1,3 @@
-# -- coding:utf-8 --
-
 import re
 import logging
 import traceback
@@ -692,18 +690,22 @@ async def send_next_task(update: Update, user_id: str):
         task_profile = str(r[10]).strip().lower()
         task_status = str(r[5]).strip().lower()
         task_id_done = str(r[3]).strip()
-        
-        print("PROFILE:", task_profile)
-        print("ACCOUNT:", account_profile_link)
-        print("STATUS:", task_status)
-        
+
         if task_profile !=account_profile_link:
             continue
 
-        if task_status not in ["pending", "approved", "rejected"]:
+        if task_status not in ["pending", "approved", "reject"]:
             continue
 
-        done_task_ids.add(task_id_done)
+        client_id_done = None
+        for t in templates:
+            if t and t[0] == task_id_done:
+                if len(t) > 8:
+                    client_id_done = t[8]
+                break
+
+        if client_id_done:
+            done_task_ids.add(str(client_id_done))
             
     for template in templates[1:]:
 
@@ -730,8 +732,10 @@ async def send_next_task(update: Update, user_id: str):
         if active.strip().upper() != "TRUE":
             continue
 
-        if task_id in done_task_ids:
-            continue
+        client_id = template[8] if len(template) > 8 else None
+        if social_network == "Google Maps":
+            if client_id and str(client_id) in done_task_ids:
+                continue
 
 
 # ==============================
@@ -821,7 +825,7 @@ async def send_next_task(update: Update, user_id: str):
             msg = (
                 f"📋 Завдання\n"
                 f"Тип: {task_type}\n"
-                f"Посилання: {link}\n"
+                f"{link}\n"
                 f"Нагорода: {reward} Fanki\n\n"
             )
 
