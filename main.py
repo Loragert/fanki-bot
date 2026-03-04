@@ -653,7 +653,7 @@ async def send_next_task(update: Update, user_id: str):
 
     for template in templates:
 
-        task_id = template.get("id")
+        task_id = template.get("task_id")
         sn = template.get("social_network")
         task_type = template.get("task_type")
         link = (template.get("link") or "").strip()
@@ -1548,6 +1548,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
