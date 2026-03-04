@@ -1124,6 +1124,8 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             user_state[user_id] = "working"
             return
 
+        print("DEBAG INSERT:", user_id, account_name, task_id)
+
         res = supabase.table("Tasks").insert({
             "telegram_id": user_id,
             "social_network": task["social"],
@@ -1547,6 +1549,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
