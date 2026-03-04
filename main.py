@@ -612,14 +612,7 @@ async def send_next_task(update: Update, user_id: str):
         .data
     )
 
-    tasks = (
-        supabase
-        .table("Tasks")
-        .select("task_id")
-        .eq("account", account_name)
-        .eq("social_network", social_network)
-        .execute()
-    ).data
+    
     comments = supabase.table("Comment_Pool").select("*").execute().data
     accounts = supabase.table("Accounts").select("*").execute().data
 
@@ -629,6 +622,14 @@ async def send_next_task(update: Update, user_id: str):
 
     social_network = user_selected_social[user_id]
     account_name = user_selected_account.get(user_id)
+    tasks = (
+        supabase
+        .table("Tasks")
+        .select("task_id")
+        .eq("account", account_name)
+        .eq("social_network", social_network)
+        .execute()
+    ).data
 
     account_row = next(
         (
@@ -1583,6 +1584,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
