@@ -20,8 +20,10 @@ from telegram.ext import (
     ContextTypes,
     filters
 )
-import gspread
-from oauth2client.service_account import ServiceAccountCredentials
+
+from supabase import create_client, Client
+
+
 
 # ==============================
 # CONFIG
@@ -63,52 +65,63 @@ def safe_google_call(func, *args, **kwargs):
 
 logging.basicConfig(level=logging.INFO)
 
+
 # ==============================
-# GOOGLE SHEETS
+# SUPABASE
 # ==============================
 
-scope = [
-    "https://spreadsheets.google.com/feeds",
-    "https://www.googleapis.com/auth/drive"
-]
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
-creds = safe_google_call(
-    lambda: ServiceAccountCredentials.from_json_keyfile_name(
-        "/workspace/creds.json", scope
-    )
-)
+if not SUPABASE_URL or not SUPABASE_KEY:
+    raise ValueError("SUPABASE credentials not found")
 
-client = safe_google_call(
-    lambda: gspread.authorize(creds)
-) if creds else None
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-sheet_users = safe_google_call(
-    lambda: client.open("FankiBot").worksheet("Users")
-) if client else None
+class SheetAdapter:
+    def __init__(self, table):
+        self.table = table
 
-sheet_accounts = safe_google_call(
-    lambda: client.open("FankiBot").worksheet("Accounts")
-) if client else None
+    def get_all_values(self):
+        res = supabase.table(self.table).select("*").execute()
+        rows = res.data or []
+        if not rows:
+            return []
+        header = list(rows[0].keys())
+        data = [header]
+        for r in rows:
+            data.append([str(r.get(h, "")) for h in header])
+        return data
 
-sheet_withdrawals = safe_google_call(
-    lambda: client.open("FankiBot").worksheet("Withdrawals")
-) if client else None
+    def append_row(self, row):
+        supabase.table(self.table).insert(dict(enumerate(row))).execute()
 
-sheet_templates = safe_google_call(
-    lambda: client.open("FankiBot").worksheet("TaskTemplates")
-) if client else None
+    def update_cell(self, row, col, value):
+        data = self.get_all_values()
+        if row >= len(data):
+            return
+        header = data[0]
+        if col-1 >= len(header):
+            return
+        column = header[col-1]
+        row_id = data[row][0]
+        supabase.table(self.table).update({column: value}).eq(header[0], row_id).execute()
 
-sheet_tasks = safe_google_call(
-    lambda: client.open("FankiBot").worksheet("Tasks")
-) if client else None
+    def row_values(self, row):
+        data = self.get_all_values()
+        if row < len(data):
+            return data[row]
+        return []
 
-sheet_comment_pool = safe_google_call(
-    lambda: client.open("FankiBot").worksheet("Comment_Pool")
-) if client else None
 
-sheet_admin_logs = safe_google_call(
-    lambda:client.open("FankiBot").worksheet("AdminLogs")
-) if client else None
+
+sheet_users = SheetAdapter("Users")
+sheet_accounts = SheetAdapter("Accounts")
+sheet_withdrawals = SheetAdapter("Withdrawals")
+sheet_templates = SheetAdapter("TaskTemplates")
+sheet_tasks = SheetAdapter("Tasks")
+sheet_comment_pool = SheetAdapter("Comment_Pool")
+sheet_admin_logs = SheetAdapter("AdminLogs")
 
 # ==============================
 # CACHE
@@ -1543,10 +1556,3 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
-
-
-
-
-
-
-
