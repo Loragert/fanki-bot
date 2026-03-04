@@ -72,9 +72,6 @@ async def send_admin_error(error_text):
     except:
         pass
 
-P S <uneas10121990@gmail.com>
-10:43 (7 часов назад)
-кому: Kateryna
 
 # ==============================
 # STATE
@@ -1544,3 +1541,4 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
