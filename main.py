@@ -633,7 +633,7 @@ async def send_next_task(update: Update, user_id: str):
     # TASKS USER ALREADY DONE
     # ==========================
 
-    done_links = set()
+    done_task_ids = set()
 
     for r in tasks:
 
@@ -642,8 +642,7 @@ async def send_next_task(update: Update, user_id: str):
             and r.get("account") == account_name
             and r.get("status") in ["Pending", "Approved", "Rejected"]
         ):
-            done_links.add((r.get("link") or "").strip())
-
+            done_task_ids.add(str(r.get("task_id")
     # ==========================
     # SEARCH AVAILABLE TASK
     # ==========================
@@ -666,7 +665,7 @@ async def send_next_task(update: Update, user_id: str):
             continue
 
         # 🔴 ГОЛОВНИЙ ФІКС
-        if link in done_links:
+        if str(task_id) in done_task_ids:
             continue
 
         # ==========================
@@ -1543,5 +1542,6 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
