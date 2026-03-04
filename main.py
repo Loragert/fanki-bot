@@ -603,12 +603,18 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def send_next_task(update: Update, user_id: str):
 
-    templates = supabase.table("TaskTemplates").select("*").execute().data
+    templates = (
+        supabase
+        .table("TaskTemplates")
+        .select("*")
+        .order("id")
+        .execute()
+        .data
+    )
+
     tasks = supabase.table("Tasks").select("*").execute().data
     comments = supabase.table("Comment_Pool").select("*").execute().data
     accounts = supabase.table("Accounts").select("*").execute().data
-
-    print("DEBAG TASKS:",tasks)
 
     if user_id not in user_selected_social:
         await update.message.reply_text("Помилка: соцмережа не вибрана.")
@@ -632,28 +638,34 @@ async def send_next_task(update: Update, user_id: str):
         return
 
     # ==========================
-    # TASKS USER ALREADY DONE
+    # TASKS ALREADY DONE BY ACCOUNT
     # ==========================
 
     done_task_ids = set()
 
     for r in tasks:
-        print("DEBAG ROW:", r)
 
         if (
             (r.get("account") or "").strip().lower() == account_name.strip().lower()
             and str(r.get("social_network")).lower() == str(social_network).lower()
         ):
-            done_task_ids.add(str(r.get("task_id")))
 
-    print("DEBAG DONE TASK IDS:", done_task_ids)
+            try:
+                done_task_ids.add(int(r.get("task_id")))
+            except:
+                pass
+
     # ==========================
-    # SEARCH AVAILABLE TASK
+    # SEARCH NEXT TASK
     # ==========================
 
     for template in templates:
 
-        task_id = template.get("task_id")
+        try:
+            task_id = int(template.get("task_id"))
+        except:
+            continue
+
         sn = template.get("social_network")
         task_type = template.get("task_type")
         link = (template.get("link") or "").strip()
@@ -668,12 +680,16 @@ async def send_next_task(update: Update, user_id: str):
         if not active:
             continue
 
-        # 🔴 ГОЛОВНИЙ ФІКС
-        if str(task_id) in done_task_ids:
+        # ==========================
+        # MAIN RULE
+        # 1 ACCOUNT = 1 TASK_ID
+        # ==========================
+
+        if task_id in done_task_ids:
             continue
 
         # ==========================
-        # USER DAILY LIMIT
+        # DAILY LIMIT
         # ==========================
 
         today = datetime.now().strftime("%d.%m.%Y")
@@ -682,8 +698,7 @@ async def send_next_task(update: Update, user_id: str):
         for t in tasks:
 
             if (
-                str(t.get("telegram_id")) == str(user_id)
-                and t.get("account") == account_name
+                (t.get("account") or "").strip().lower() == account_name.strip().lower()
                 and str(t.get("task_id")) == str(task_id)
                 and t.get("status") == "Approved"
                 and str(t.get("assign_date", "")).startswith(today)
@@ -745,7 +760,6 @@ async def send_next_task(update: Update, user_id: str):
             "comment": comment_text,
             "comment_row_id": comment_row_id
         }
-       
 
         # ==========================
         # SEND TASK
@@ -793,6 +807,7 @@ async def send_next_task(update: Update, user_id: str):
         "Немає доступних завдань.",
         reply_markup=ReplyKeyboardMarkup([["⬅️ Назад"]], resize_keyboard=True)
     )
+
 
 # ==============================
 # USER MESSAGE HANDLER
@@ -1550,6 +1565,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
