@@ -638,6 +638,7 @@ async def send_next_task(update: Update, user_id: str):
     done_task_ids = set()
 
     for r in tasks:
+        print("DEBAG ROW:" r)
 
         if (
             str(r.get("telegram_id")) == str(user_id)
@@ -646,7 +647,7 @@ async def send_next_task(update: Update, user_id: str):
         ):
             done_task_ids.add(str(r.get("task_id")))
 
-    print("DEBAG ROW:" r)
+    print("DEBAG DONE TASK IDS:", done_task_ids)
     # ==========================
     # SEARCH AVAILABLE TASK
     # ==========================
@@ -1546,6 +1547,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
