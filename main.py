@@ -507,7 +507,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             row = res.data[0]
 
-            if row["comment_text"] != "Pending":
+            if row["status"] != "Pending":
                 return
 
             user_id = row["telegram_id"]
@@ -516,7 +516,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if action == "task_approve":
 
                 supabase.table("Tasks").update({
-                    "comment_text": "Approved",
+                    "status": "Approved",
                     "paid": "Paid",
                     "approve_date": datetime.now().strftime("%d.%m.%Y %H:%M")
                 }).eq("id", record_id).execute()
@@ -538,7 +538,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             else:
 
                 supabase.table("Tasks").update({
-                    "comment_text": "Rejected"
+                    "status": "Rejected"
                 }).eq("id", record_id).execute()
 
                 await context.bot.send_message(
@@ -618,7 +618,7 @@ async def send_next_task(update: Update, user_id: str):
         (
             r for r in accounts
             if str(r.get("telegram_id")) == str(user_id)
-            and (r.get("username")).strip().lower() == str(account_name).strip().lower()
+            and r.get("username") == account_name
             and r.get("status") == "Approved"
         ),
         None
@@ -639,7 +639,7 @@ async def send_next_task(update: Update, user_id: str):
         if (
             str(r.get("telegram_id")) == str(user_id)
             and r.get("account") == account_name
-            and r.get("comment_text") in ["Pending", "Approved", "Rejected"]
+            and r.get("status") in ["Pending", "Approved", "Rejected"]
         ):
             done_task_ids.add(str(r.get("task_id")))
 
@@ -1122,9 +1122,10 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             "account": user_selected_account[user_id],
             "task_id": task["task_id"],
             "link": task["link"],
+            "status": "Pending",
             "assign_date": now,
             "screenfile_id": file_id,
-            "comment_text": "Pending"
+            "comment_text": task.get("comment", "")
         }).execute()
 
         task_record_id = res.data[0]["id"]
@@ -1538,8 +1539,4 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
-
-
-
-
 
