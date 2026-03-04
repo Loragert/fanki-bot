@@ -612,7 +612,6 @@ async def send_next_task(update: Update, user_id: str):
         .data
     )
 
-    
     comments = supabase.table("Comment_Pool").select("*").execute().data
     accounts = supabase.table("Accounts").select("*").execute().data
 
@@ -622,10 +621,11 @@ async def send_next_task(update: Update, user_id: str):
 
     social_network = user_selected_social[user_id]
     account_name = user_selected_account.get(user_id)
+
     tasks = (
         supabase
         .table("Tasks")
-        .select("task_id")
+        .select("*")
         .eq("account", account_name)
         .eq("social_network", social_network)
         .execute()
@@ -645,108 +645,34 @@ async def send_next_task(update: Update, user_id: str):
         await update.message.reply_text("Акаунт не підтверджений.")
         return
 
-    # ==========================
-    # TASKS ALREADY DONE BY ACCOUNT
-    # ==========================
-
+    # already used task_ids
     done_task_ids = set()
 
     for r in tasks:
+        try:
+            done_task_ids.add(int(r.get("task_id")))
+        except:
+            pass
 
-        if (
-            (r.get("account") or "").strip().lower() == account_name.strip().lower()
-            and str(r.get("social_network")).lower() == str(social_network).lower()
-        ):
+    for template in templates:
 
-            try:
-                done_task_ids.add(int(r.get("task_id")))
-            except:
-                pass
-
-    # ==========================
-    # SEARCH NEXT TASK
-    # ==========================
-    unique_templates = {}
-    for t in templates:
-        if not t.get("active"):
+        if not template.get("active"):
             continue
 
-        if str(t.get("social_network")).lower() != str(social_network).lower():
+        if str(template.get("social_network")).lower() != str(social_network).lower():
             continue
-        
-        tid = t.get("task_id")
-        if tid not in unique_templates:
-            unique_templates[tid] = t
-
-    for template in unique_templates.values():
 
         try:
             task_id = int(template.get("task_id"))
         except:
             continue
 
-        sn = template.get("social_network")
-        task_type = template.get("task_type")
-        link = (template.get("link") or "").strip()
-        reward = template.get("reward")
-        max_per_day = template.get("max_per_day")
-        max_total = template.get("max_total")
-        active = template.get("active")
-
-        if str(sn).lower() != str(social_network).lower():
-            continue
-
-        if not active:
-            continue
-
-        # ==========================
-        # MAIN RULE
-        # 1 ACCOUNT = 1 TASK_ID
-        # ==========================
-
         if task_id in done_task_ids:
             continue
 
-        # ==========================
-        # DAILY LIMIT
-        # ==========================
-
-        today = datetime.now().strftime("%d.%m.%Y")
-        user_today_count = 0
-
-        for t in tasks:
-
-            if (
-                (t.get("account") or "").strip().lower() == account_name.strip().lower()
-                and str(t.get("task_id")) == str(task_id)
-                and t.get("status") == "Approved"
-                and str(t.get("assign_date", "")).startswith(today)
-            ):
-                user_today_count += 1
-
-        if max_per_day and user_today_count >= int(max_per_day):
-            continue
-
-        # ==========================
-        # GLOBAL LIMIT
-        # ==========================
-
-        total_used = 0
-
-        for t in tasks:
-
-            if (
-                str(t.get("task_id")) == str(task_id)
-                and t.get("status") in ["Pending", "Approved"]
-            ):
-                total_used += 1
-
-        if max_total and total_used >= int(max_total):
-            continue
-
-        # ==========================
-        # COMMENT TASK
-        # ==========================
+        task_type = template.get("task_type")
+        link = (template.get("link") or "").strip()
+        reward = template.get("reward")
 
         comment_text = ""
         comment_row_id = None
@@ -766,23 +692,15 @@ async def send_next_task(update: Update, user_id: str):
             comment_text = comment.get("comment")
             comment_row_id = comment.get("id")
 
-        # ==========================
-        # SAVE CURRENT TASK
-        # ==========================
-
         current_task[user_id] = {
             "task_id": task_id,
-            "social": sn,
+            "social": social_network,
             "type": task_type,
             "link": link,
             "reward": reward,
             "comment": comment_text,
             "comment_row_id": comment_row_id
         }
-
-        # ==========================
-        # SEND TASK
-        # ==========================
 
         if str(task_type).lower() == "comment":
 
@@ -826,6 +744,7 @@ async def send_next_task(update: Update, user_id: str):
         "Немає доступних завдань.",
         reply_markup=ReplyKeyboardMarkup([["⬅️ Назад"]], resize_keyboard=True)
     )
+
 
 
 # ==============================
@@ -1584,6 +1503,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
