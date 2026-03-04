@@ -507,7 +507,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             row = res.data[0]
 
-            if row["status"] != "Pending":
+            if row["comment_text"] != "Pending":
                 return
 
             user_id = row["telegram_id"]
@@ -516,7 +516,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if action == "task_approve":
 
                 supabase.table("Tasks").update({
-                    "status": "Approved",
+                    "comment_text": "Approved",
                     "paid": "Paid",
                     "approve_date": datetime.now().strftime("%d.%m.%Y %H:%M")
                 }).eq("id", record_id).execute()
@@ -538,7 +538,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             else:
 
                 supabase.table("Tasks").update({
-                    "status": "Rejected"
+                    "comment_text": "Rejected"
                 }).eq("id", record_id).execute()
 
                 await context.bot.send_message(
@@ -619,7 +619,7 @@ async def send_next_task(update: Update, user_id: str):
             r for r in accounts
             if str(r.get("telegram_id")) == str(user_id)
             and r.get("username") == account_name
-            and r.get("status") == "Approved"
+            and r.get("comment_text") == "Approved"
         ),
         None
     )
@@ -639,7 +639,7 @@ async def send_next_task(update: Update, user_id: str):
         if (
             str(r.get("telegram_id")) == str(user_id)
             and r.get("account") == account_name
-            and r.get("status") in ["Pending", "Approved", "Rejected"]
+            and r.get("comment_text") in ["Pending", "Approved", "Rejected"]
         ):
             done_task_ids.add(str(r.get("task_id")))
 
@@ -1539,4 +1539,5 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
