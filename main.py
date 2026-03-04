@@ -72,6 +72,9 @@ async def send_admin_error(error_text):
     except:
         pass
 
+P S <uneas10121990@gmail.com>
+10:43 (7 часов назад)
+кому: Kateryna
 
 # ==============================
 # STATE
@@ -634,7 +637,7 @@ async def send_next_task(update: Update, user_id: str):
     # TASKS USER ALREADY DONE
     # ==========================
 
-    done_task_ids = set()
+    done_links = set()
 
     for r in tasks:
 
@@ -643,7 +646,7 @@ async def send_next_task(update: Update, user_id: str):
             and r.get("account") == account_name
             and r.get("status") in ["Pending", "Approved", "Rejected"]
         ):
-            done_task_ids.add(str(r.get("task_id")))
+            done_links.add((r.get("link") or "").strip())
 
     # ==========================
     # SEARCH AVAILABLE TASK
@@ -666,7 +669,8 @@ async def send_next_task(update: Update, user_id: str):
         if not active:
             continue
 
-        if str(task_id) in done_task_ids:
+        # 🔴 ГОЛОВНИЙ ФІКС
+        if link in done_links:
             continue
 
         # ==========================
@@ -789,6 +793,7 @@ async def send_next_task(update: Update, user_id: str):
         "Немає доступних завдань.",
         reply_markup=ReplyKeyboardMarkup([["⬅️ Назад"]], resize_keyboard=True)
     )
+
 # ==============================
 # USER MESSAGE HANDLER
 # ==============================
@@ -1541,4 +1546,3 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
-
