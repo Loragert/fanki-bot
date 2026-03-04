@@ -658,8 +658,18 @@ async def send_next_task(update: Update, user_id: str):
     # ==========================
     # SEARCH NEXT TASK
     # ==========================
+    unique_templates = {}
+    for t in templates:
+        if not t.get("active"):
+            continue
 
-    for template in templates:
+        if str(t.get("social+network")).lower() !=str(social+network).lower()
+            continue
+        tid = t.get("task_id")
+        if tid not in unique_templates:
+            unique_templates[tid] = t
+
+    for template in unique_templates.values():
 
         try:
             task_id = int(template.get("task_id"))
@@ -1565,6 +1575,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
