@@ -641,9 +641,8 @@ async def send_next_task(update: Update, user_id: str):
         print("DEBAG ROW:", r)
 
         if (
-            int(r.get("telegram_id")) == int(user_id)
+            str(r.get("telegram_id")) == str(user_id)
             and (r.get("account") or "").strip().lower() == account_name.strip().lower()
-            and r.get("status") in ["Pending", "Approved", "Rejected"]
         ):
             done_task_ids.add(str(r.get("task_id")))
 
@@ -1549,6 +1548,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
