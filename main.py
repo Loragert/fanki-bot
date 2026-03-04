@@ -1156,6 +1156,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             "Pending",
             now,
             file_id,
+            "",
             task.get("comment", "") or "",
             "",
             account_profile_link
@@ -1543,3 +1544,11 @@ if __name__ == "__main__":
     print("FankiBot Production Ready 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
+
+
+
+
+
+
+
