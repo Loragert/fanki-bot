@@ -642,6 +642,7 @@ async def send_next_task(update: Update, user_id: str):
 
         if (
             (r.get("account") or "").strip().lower() == account_name.strip().lower()
+            and str(r.get("social_network")).lower() == str(social_network).lower()
         ):
             done_task_ids.add(str(r.get("task_id")))
 
@@ -1116,6 +1117,8 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 
         file_id = update.message.photo[-1].file_id
         task = current_task.get(user_id)
+        account_name = user_selected_account.get(user_id)
+        task_id = task["task_id"]
 
         if not task:
             await update.message.reply_text("Помилка. Спробуйте ще раз.")
@@ -1547,6 +1550,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
