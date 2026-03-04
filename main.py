@@ -603,7 +603,6 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def send_next_task(update: Update, user_id: str):
 
     templates = supabase.table("TaskTemplates").select("*").execute().data
-    tasks = supabase.table("Tasks").select("*").execute().data
     comments = supabase.table("Comment_Pool").select("*").execute().data
     accounts = supabase.table("Accounts").select("*").execute().data
 
@@ -628,25 +627,6 @@ async def send_next_task(update: Update, user_id: str):
         await update.message.reply_text("Акаунт не підтверджений.")
         return
 
-    # ==========================
-    # TASKS USER ALREADY DONE
-    # ==========================
-
-    done_task_ids = set()
-
-    for r in tasks:
-
-        if (
-            str(r.get("telegram_id")) == str(user_id)
-            and r.get("account") == account_name
-            and r.get("status") in ["Pending", "Approved", "Rejected"]
-        ):
-            done_task_ids.add(str(r.get("task_id")))
-
-    # ==========================
-    # SEARCH AVAILABLE TASK
-    # ==========================
-
     for template in templates:
 
         task_id = template.get("id")
@@ -664,45 +644,30 @@ async def send_next_task(update: Update, user_id: str):
         if not active:
             continue
 
-        if str(task_id) in done_task_ids:
-            continue
+        # --- IMPORTANT FIX ---
+        # Check directly in DB if this account already executed this template
+        existing = supabase.table("Tasks") \
+            .select("id") \
+            .eq("telegram_id", user_id) \
+            .eq("account", account_name) \
+            .eq("task_id", task_id) \
+            .limit(1) \
+            .execute()
 
-        # ==========================
-        # USER DAILY LIMIT
-        # ==========================
-
-        today = datetime.now().strftime("%d.%m.%Y")
-        user_today_count = 0
-
-        for t in tasks:
-
-            if (
-                str(t.get("telegram_id")) == str(user_id)
-                and t.get("account") == account_name
-                and str(t.get("task_id")) == str(task_id)
-                and t.get("status") == "Approved"
-                and str(t.get("assign_date", "")).startswith(today)
-            ):
-                user_today_count += 1
-
-        if max_per_day and user_today_count >= int(max_per_day):
+        if existing.data:
             continue
 
         # ==========================
         # GLOBAL LIMIT
         # ==========================
 
-        total_used = 0
+        total_used = supabase.table("Tasks") \
+            .select("id") \
+            .eq("task_id", task_id) \
+            .in_("status", ["Pending", "Approved"]) \
+            .execute()
 
-        for t in tasks:
-
-            if (
-                str(t.get("task_id")) == str(task_id)
-                and t.get("status") in ["Pending", "Approved"]
-            ):
-                total_used += 1
-
-        if max_total and total_used >= int(max_total):
+        if max_total and len(total_used.data) >= int(max_total):
             continue
 
         # ==========================
@@ -748,10 +713,10 @@ async def send_next_task(update: Update, user_id: str):
         if str(task_type).lower() == "comment":
 
             msg = (
-                f"{link}\n\n"
-                f"Дія:\nЗалишити коментар\n"
-                f"-------------------------\n\n"
-                f"💵 Нагорода:\n{reward} Fanki"
+                f"{link}"
+                f"Дія:Залишити коментар"
+                f"-----------------------"
+                f"💵 Нагорода:{reward} Fanki"
             )
 
             await update.message.reply_text(msg)
@@ -760,9 +725,9 @@ async def send_next_task(update: Update, user_id: str):
         else:
 
             msg = (
-                f"📋 Завдання\n"
-                f"Тип: {task_type}\n\n"
-                f"{link}\n\n"
+                f"📋 Завдання"
+                f"Тип: {task_type}"
+                f"{link}"
                 f"Нагорода: {reward} Fanki"
             )
 
