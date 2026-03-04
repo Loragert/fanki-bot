@@ -663,8 +663,9 @@ async def send_next_task(update: Update, user_id: str):
         if not t.get("active"):
             continue
 
-        if str(sn).lower() != str(social_network).lower()
+        if str(t.get("social_network")).lower() != str(social_network).lower():
             continue
+        
         tid = t.get("task_id")
         if tid not in unique_templates:
             unique_templates[tid] = t
@@ -1575,6 +1576,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
