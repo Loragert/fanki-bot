@@ -48,6 +48,7 @@ if not SUPABASE_URL or not SUPABASE_KEY:
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 ADMIN_ID = [6699691752]
+TASK_MODERATOR_ID = [877030342]
 
 
 # ==============================
@@ -1114,9 +1115,16 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         ])
 
         await context.bot.send_photo(
-            ADMIN_ID[0],
+            TASK_MODERATOR_ID,
             file_id,
-            caption=f"ID: {user_id}\nTask: {task['task_id']}",
+            caption=(
+                f"👤 User ID: {user_id}\n"
+                f"📱 Соцмережа: {task['social']}\n"
+                f"👤 Акаунт: {account_name}\n"
+                f"⚙️ Тип: {task['type']}\n"
+                f"📋 Завдання: {task['task_id']}\n"
+                f"🔗 Посилання: {task['link']}"
+            ),
             reply_markup=keyboard
         )
 
@@ -1503,6 +1511,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
