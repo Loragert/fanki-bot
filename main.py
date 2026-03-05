@@ -48,7 +48,7 @@ if not SUPABASE_URL or not SUPABASE_KEY:
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 ADMIN_ID = [6699691752]
-TASK_MODERATOR_ID = [877030342]
+TASK_MODERATOR_ID = 877030342
 
 
 # ==============================
@@ -1511,6 +1511,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
