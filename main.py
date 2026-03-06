@@ -722,8 +722,14 @@ async def send_next_task(update: Update, user_id: str):
 
             await update.message.reply_text(msg)
 
+        buttons = [
+            ["✅ Виконано"],
+            ["⏭ Пропустити"],
+            ["⬅️ Назад"]
+        ]
+
         markup = ReplyKeyboardMarkup(
-            [["✅ Виконано"], ["⬅️ Назад"]],
+            buttons,
             resize_keyboard=True
         )
 
@@ -1024,12 +1030,29 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             await update.message.reply_text("Немає акаунтів у цій мережі.")
             return
 
+        buttons = []
+        row = []
+
+        for i, acc in enumerate(approved_accounts, start=1):
+
+            row.append(f"{i}. {acc}")
+
+            if len(row) == 2:
+                buttons.append(row)
+                row = []
+
+        if row:
+            buttons.append(row)
+
+        buttons.append(["⬅️ Назад"])
+
         markup = ReplyKeyboardMarkup(
-            [[acc] for acc in approved_accounts] + [["⬅️ Назад"]],
+            buttons,
             resize_keyboard=True
         )
 
         user_state[user_id] = "select_account"
+
 
         await update.message.reply_text("Оберіть акаунт:", reply_markup=markup)
         return
@@ -1037,6 +1060,9 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     # ---------------- SELECT ACCOUNT ----------------
 
     if state == "select_account":
+        if ". " in text:
+            text = text.split(". ", 1)[1]
+
 
         user_selected_account[user_id] = text
         user_state[user_id] = "working"
@@ -1045,6 +1071,14 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
 
     # ---------------- TASK DONE BUTTON ----------------
+
+    if text == "⏭ Пропустити" and state == "working":
+
+        current_task.pop(user_id, None)
+
+        await send_next_task(update, user_id)
+
+        return
 
     if text == "✅ Виконано" and state == "working":
 
@@ -1110,6 +1144,40 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             ]
         ])
 
+        user_row = supabase.table("Users").select("is_top_auto").eq("telegram_id", user_id).execute()
+
+        is_auto = False
+        if user_row.data:
+            is_auto = user_row.data[0]["is_top_auto"]
+
+        if is_auto:
+
+            supabase.table("Tasks").update({
+                "status": "Approved",
+                "paid": "Paid",
+                "approve_date": now
+            }).eq("id", task_record_id).execute()
+
+            template = supabase.table("TaskTemplates").select("*").eq("id", task_id).execute().data
+            reward = int(template[0]["reward"]) if template else 0
+
+            update_user_balance(user_id, reward)
+            add_to_user_total(user_id, reward)
+
+            await context.bot.send_photo(
+                TASK_MODERATOR_ID,
+                file_id,
+                caption="🤖 AUTO APPROVE\n\n" + 
+                f"👤 User ID: {user_id}\n"
+                f"📱 Соцмережа: {task['social']}\n"
+                f"👤 Акаунт: {account_name}\n"
+                f"🧩 Тип: {task['type']}\n"
+                f"📄 Завдання: {task['task_id']}\n"
+                f"🔗 Посилання: {task['link']}"
+            )
+
+            return
+
         await context.bot.send_photo(
             TASK_MODERATOR_ID,
             file_id,
@@ -1134,7 +1202,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             return
 
         user_state[user_id] = None
-        await show_main_menu(update)
+        await send_next_task(update, user_id)
         return
 # ==============================
 # WITHDRAW (USER SIDE)
@@ -1507,6 +1575,38 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
