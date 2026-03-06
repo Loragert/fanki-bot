@@ -1176,23 +1176,23 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
                 f"🔗 Посилання: {task['link']}"
             )
 
-            return
+        else:
 
-        await context.bot.send_photo(
-            TASK_MODERATOR_ID,
-            file_id,
-            caption=(
+            await context.bot.send_photo(
+                TASK_MODERATOR_ID,
+                file_id,
+                caption=(
                 f"👤 User ID: {user_id}\n"
                 f"📱 Соцмережа: {task['social']}\n"
                 f"👤 Акаунт: {account_name}\n"
                 f"⚙️ Тип: {task['type']}\n"
                 f"📋 Завдання: {task['task_id']}\n"
                 f"🔗 Посилання: {task['link']}"
-            ),
-            reply_markup=keyboard
-        )
+                ),
+                reply_markup=keyboard
+            )
 
-        await update.message.reply_text("Скрін відправлено на перевірку.")
+            await update.message.reply_text("Скрін відправлено на перевірку.")
 
         current_task.pop(user_id, None)
 
@@ -1575,6 +1575,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
