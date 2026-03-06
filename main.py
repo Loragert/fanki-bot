@@ -1163,6 +1163,10 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 
             update_user_balance(user_id, reward)
             add_to_user_total(user_id, reward)
+            await context.bot.send_message(
+                chat_id=int(user_id),
+                text=f"✅ Завдання підтверджено!\n💰 Нараховано {reward} Fanki."
+            )
 
             await context.bot.send_photo(
                 TASK_MODERATOR_ID,
@@ -1575,6 +1579,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
