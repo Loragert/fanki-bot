@@ -192,7 +192,7 @@ def get_user_stats(user_id):
 
     users = get_users()
     reg_date = "_"
-    for row in users
+    for row in users:
         it str(row.get("telegram_id")) == str(user_id):
             reg_date = row.get("register") or "_"
             break
@@ -1507,6 +1507,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
