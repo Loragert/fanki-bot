@@ -1156,9 +1156,9 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
                 "status": "Approved",
                 "paid": "Paid",
                 "approve_date": now
-            }).eq("id", task_record_id).execute()
+            }).eq("task_id", task_record_id).execute()
 
-            template = supabase.table("TaskTemplates").select("*").eq("id", task_id).execute().data
+            template = supabase.table("TaskTemplates").select("*").eq("task_id", task_id).execute().data
             reward = int(template[0]["reward"]) if template else 0
 
             update_user_balance(user_id, reward)
@@ -1579,6 +1579,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
