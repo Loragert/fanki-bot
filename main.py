@@ -191,25 +191,21 @@ def add_to_user_total(user_id, amount):
 def get_user_stats(user_id):
 
     users = get_users()
-    tasks = get_tasks()
-
-    reg_date = "-"
-    completed_tasks = 0
-
-    for row in users:
-
-        if str(row.get("telegram_id")) == str(user_id):
-
-            reg_date = row.get("register") or "-"
+    reg_date = "_"
+    for row in users
+        it str(row.get("telegram_id")) == str(user_id):
+            reg_date = row.get("register") or "_"
             break
+    res = (
+        supabase
+        .table("Tasks")
+        .select("id", count="exact")
+        .eq("telegram_id", user_id)
+        .eq("status", "Approved")
+        .execute()
+    )
+    completed_tasks = res.count if res.count else 0
 
-    for row in tasks:
-
-        if (
-            str(row.get("telegram_id")) == str(user_id)
-            and row.get("status") == "Approved"
-        ):
-            completed_tasks += 1
 
     return reg_date, completed_tasks
 
@@ -1511,6 +1507,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
