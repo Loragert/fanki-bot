@@ -52,7 +52,7 @@ TASK_MODERATOR_ID = 877030342
 
 
 # ==============================
-# ERROR NOTIFY
+# ERROR NOTIFYy
 # ==============================
 
 def notify_admin_async(error_text):
@@ -1575,6 +1575,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
