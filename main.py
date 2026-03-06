@@ -84,6 +84,7 @@ user_selected_account = {}
 user_binance_id = {}
 user_withdraw_amount = {}
 current_task = {}
+skipped_tasks = {}
 
 
 # ==============================
@@ -667,6 +668,9 @@ async def send_next_task(update: Update, user_id: str):
         if task_id in done_task_ids:
             continue
 
+        if task_id in skipped_tasks.get(user_id, set()):
+            continue
+
         task_type = template.get("task_type")
         link = (template.get("link") or "").strip()
         reward = template.get("reward")
@@ -1074,10 +1078,14 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     if text == "⏭ Пропустити" and state == "working":
 
+        task = current_task.get(user_id)
+
+        if task:
+            skipped_tasks.setdefault(user_id, set()).add(task["task_id"])
+
         current_task.pop(user_id, None)
 
         await send_next_task(update, user_id)
-
         return
 
     if text == "✅ Виконано" and state == "working":
@@ -1580,6 +1588,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
