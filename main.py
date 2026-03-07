@@ -49,6 +49,7 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 ADMIN_ID = [6699691752]
 TASK_MODERATOR_ID = 877030342
+TASK_AUTO_ID = 7489327594
 
 
 # ==============================
@@ -1178,7 +1179,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             )
 
             await context.bot.send_photo(
-                TASK_MODERATOR_ID,
+                TASK_AUTO_ID,
                 file_id,
                 caption="🤖 AUTO APPROVE\n\n" + 
                 f"👤 User ID: {user_id}\n"
@@ -1588,6 +1589,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
