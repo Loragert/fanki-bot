@@ -28,6 +28,16 @@ from telegram.ext import (
 
 from supabase import create_client
 
+# ==============================
+# ПЕРЕКЛАД ТИПІВ ЗАВДАНЬ
+# ==============================
+
+TASK_TEXT = {
+    "like": "👍 Лайкнути пост",
+    "follow": "➕ Підписатися",
+    "comment": "💬 Залишити коментар"
+}
+
 
 # ==============================
 # CONFIG
@@ -675,6 +685,7 @@ async def send_next_task(update: Update, user_id: str):
         task_type = template.get("task_type")
         link = (template.get("link") or "").strip()
         reward = template.get("reward")
+        action_text = TASK_TEXT.get(str(task_type).lower(), task_type)
 
         comment_text = ""
         comment_row_id = None
@@ -707,24 +718,28 @@ async def send_next_task(update: Update, user_id: str):
         if str(task_type).lower() == "comment":
 
             msg = (
-                f"{link}\n\n"
-                f"Дія:\nЗалишити коментар\n"
-                f"-------------------------\n\n"
-                f"💵 Нагорода:\n{reward} Fanki"
+                "📌 Завдання\n\n"
+                "⚠️ Обов'язково зробіть скрін виконаної дії!\n\n"
+                "❗ Важливо:\n"
+                "• Не дублюйте коментарі\n"
+                "• Не залишайте два однакових коментарі\n"
+                "• Перед публікацією перевірте, чи такого коментаря ще немає під постом\n\n"
+                f"🔗 Посилання:\n{link}\n\n"
+                f"🎯 Дія:\n{action_text}\n\n"
+                f"💰 Нагорода:\n{reward} Fanki\n\n"
             )
-
             await update.message.reply_text(msg)
             await update.message.reply_text(comment_text)
 
         else:
 
             msg = (
-                f"📋 Завдання\n"
-                f"Тип: {task_type}\n\n"
-                f"{link}\n\n"
-                f"Нагорода: {reward} Fanki"
+                "📌 Завдання\n\n"
+                "⚠️ Обов'язково зробіть скрін виконаної дії!\n\n"
+                f"🔗 Посилання:\n{link}\n\n"
+                f"🎯 Дія:\n{action_text}\n\n"
+                f"💰 Нагорода:\n{reward} Fanki\n\n"
             )
-
             await update.message.reply_text(msg)
 
         buttons = [
@@ -1589,6 +1604,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
