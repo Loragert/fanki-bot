@@ -569,12 +569,12 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     f"🔗 Посилання:\n{link}\n\n"
                     "⚠️ Причина: дія виконана неправильно або скріншот не підтверджує виконання.\n\n"
                     "🔄 Ви можете виконати інше завдання."
-               )
+                )
 
-               await context.bot.send_message(
+                await context.bot.send_message(
                   chat_id=int(user_id),
                   text=msg
-               )
+                )
 
                 await safe_edit_caption(query, "❌ Відхилено")
 
@@ -1624,6 +1624,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
