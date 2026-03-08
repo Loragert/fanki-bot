@@ -535,13 +535,25 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
                 reward = int(template[0]["reward"]) if template else 0
 
+                task_type = template[0]["task_type"]
+                link = template[0]["link"]
+                action_text = TASK_TEXT.get(str(task_type).lower(), task_type)
+
                 update_user_balance(user_id, reward)
                 add_to_user_total(user_id, reward)
 
-                await context.bot.send_message(
-                    chat_id=int(user_id),
-                    text=f"✅ Завдання підтверджено. Нараховано {reward} Fanki."
-                )
+                    msg = (
+                        "✅ Дякуємо за виконання завдання!\n\n"
+                        f"🎯 Дія:\n{action_text}\n\n"
+                        f"🔗 Посилання:\n{link}\n\n"
+                        f"💰 На ваш баланс зараховано:\n{reward} Fanki\n\n"
+                        "🚀 Виконуйте більше завдань, щоб заробити більше Fanki!"
+                    )
+
+                    await context.bot.send_message(
+                        chat_id=int(user_id),
+                        text=msg
+                    )
 
                 await safe_edit_caption(query, "✅ Підтверджено")
 
@@ -551,10 +563,18 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     "status": "Rejected"
                 }).eq("id", record_id).execute()
 
-                await context.bot.send_message(
-                    chat_id=int(user_id),
-                    text="❌ Завдання відхилено."
-                )
+                msg = (
+                    "❌ Завдання відхилено\n\n"
+                    f"🎯 Дія:\n{action_text}\n\n"
+                    f"🔗 Посилання:\n{link}\n\n"
+                    "⚠️ Причина: дія виконана неправильно або скріншот не підтверджує виконання.\n\n"
+                    "🔄 Ви можете виконати інше завдання."
+               )
+
+              await context.bot.send_message(
+                  chat_id=int(user_id),
+                  text=msg
+              )
 
                 await safe_edit_caption(query, "❌ Відхилено")
 
@@ -1604,6 +1624,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
