@@ -542,18 +542,18 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 update_user_balance(user_id, reward)
                 add_to_user_total(user_id, reward)
 
-                    msg = (
-                        "✅ Дякуємо за виконання завдання!\n\n"
-                        f"🎯 Дія:\n{action_text}\n\n"
-                        f"🔗 Посилання:\n{link}\n\n"
-                        f"💰 На ваш баланс зараховано:\n{reward} Fanki\n\n"
-                        "🚀 Виконуйте більше завдань, щоб заробити більше Fanki!"
-                    )
+                msg = (
+                    "✅ Дякуємо за виконання завдання!\n\n"
+                    f"🎯 Дія:\n{action_text}\n\n"
+                    f"🔗 Посилання:\n{link}\n\n"
+                    f"💰 На ваш баланс зараховано:\n{reward} Fanki\n\n"
+                    "🚀 Виконуйте більше завдань, щоб заробити більше Fanki!"
+                )
 
-                    await context.bot.send_message(
-                        chat_id=int(user_id),
-                        text=msg
-                    )
+                await context.bot.send_message(
+                    chat_id=int(user_id),
+                    text=msg
+                )
 
                 await safe_edit_caption(query, "✅ Підтверджено")
 
@@ -571,10 +571,10 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     "🔄 Ви можете виконати інше завдання."
                )
 
-              await context.bot.send_message(
+               await context.bot.send_message(
                   chat_id=int(user_id),
                   text=msg
-              )
+               )
 
                 await safe_edit_caption(query, "❌ Відхилено")
 
@@ -1624,6 +1624,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
