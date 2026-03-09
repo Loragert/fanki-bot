@@ -720,7 +720,7 @@ async def send_next_task(update: Update, user_id: str):
 
             available_comments = [
                 c for c in comments
-                if str(c.get("task_id")) == str(task_id)
+                if int(c.get("task_id")) == int(task_id)
                 and c.get("active") == True
             ]
 
@@ -1630,6 +1630,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
