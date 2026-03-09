@@ -641,7 +641,13 @@ async def send_next_task(update: Update, user_id: str):
         .data
     )
 
-    comments = supabase.table("Comment_Pool").select("*").execute().data
+    comments = (
+        supabase
+        .table("Comment_Pool")
+        .select("*")
+        .eq("active", True)
+        .execute()
+    ).data
     accounts = supabase.table("Accounts").select("*").execute().data
 
     if user_id not in user_selected_social:
@@ -1624,6 +1630,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
