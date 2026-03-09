@@ -966,8 +966,28 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 
         user_state[user_id] = "await_social"
 
-        await update.message.reply_text("Соцмережа:", reply_markup=markup)
-        return
+        await update.message.reply_text(
+            "📋 Перед реєстрацією акаунту ознайомтесь з вимогами.\n\n"
+
+            "Instagram / TikTok / Facebook:\n"
+            "• Акаунт має бути відкритий\n"
+            "• Мінімум 50 підписників\n"
+            "• Мінімум 5 постів\n\n"
+
+            "Google Maps (Google акаунт):\n"
+            "Профіль має бути активним та виглядати природно. Бажано, щоб він містив:\n"
+            "• Фото профілю\n"
+            "• Ім’я та прізвище (можна вигадані)\n"
+            "• 8–15 відгуків\n"
+            "• Відгуки в різних містах\n"
+            "• Різні оцінки (не лише 5⭐)\n"
+            "• Кілька фото у відгуках\n"
+            "• Лайки чужих відгуків\n\n"
+
+            "⚠️ Акаунти, що не відповідають вимогам, будуть відхилені.\n\n"
+            "Оберіть соціальну мережу:",
+            reply_markup=markup
+        )
 
     # ---------------- SELECT SOCIAL ----------------
 
@@ -1691,6 +1711,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
