@@ -741,6 +741,11 @@ async def send_next_task(update: Update, user_id: str):
             comment_text = comment.get("comment")
             comment_row_id = comment.get("id")
 
+            # РЕЗЕРВАЦІЯ КОМЕНТАРЯ
+            supabase.table("Comment_Pool").update(
+                {"active": False}
+            ).eq("id", comment_row_id).execute()
+
         current_task[user_id] = {
             "task_id": task_id,
             "social": social_network,
@@ -1640,6 +1645,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
