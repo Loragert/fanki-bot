@@ -1141,6 +1141,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         task = current_task.get(user_id)
 
         if task:
+            account_name = user_selected_account.get(user_id)
             skipped_tasks.setdefault((user_id, account_name), set()).add(task["task_id"])
 
         current_task.pop(user_id, None)
@@ -1648,6 +1649,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
