@@ -746,7 +746,7 @@ async def send_next_task(update: Update, user_id: str):
                 now_time = datetime.now(last_time.tzinfo)
 
                 if (now_time - last_time) < timedelta(minutes=40):
-                    pass
+                    return
         
         link = (template.get("link") or "").strip()
         reward = template.get("reward")
@@ -1717,6 +1717,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
