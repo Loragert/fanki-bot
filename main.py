@@ -240,7 +240,7 @@ def is_admin(user_id):
 
 def log_admin_action(admin_id, action, target_user_id="", details=""):
 
-    now = datetime.now().strftime("%d.%m.%Y %H:%M")
+    now = datetime.utcnow().isoformat()
 
     supabase.table("AdminLogs").insert({
         "date": now,
@@ -543,7 +543,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 supabase.table("Tasks").update({
                     "status": "Approved",
                     "paid": "Paid",
-                    "approve_date": datetime.now().strftime("%d.%m.%Y %H:%M")
+                    "approve_date": datetime.utcnow().isoformat()
                 }).eq("id", record_id).execute()
 
                 template = supabase.table("TaskTemplates").select("*").eq("id", task_id).execute().data
@@ -850,7 +850,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     user_id = update.effective_user.id
     username = update.effective_user.username or update.effective_user.first_name
     text = update.message.text if update.message.text else ""
-    now = datetime.now().strftime("%d.%m.%Y %H:%M")
+    now = datetime.utcnow().isoformat()
 
     balance, total, status = get_user_data(user_id)
 
@@ -1472,7 +1472,7 @@ async def handle_withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
             user_state[user_id] = None
             return True
 
-        now = datetime.now().strftime("%d.%m.%Y %H:%M")
+        now = datetime.utcnow().isoformat()
 
         deduct_user_balance(user_id, amount)
 
@@ -1718,6 +1718,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
