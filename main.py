@@ -785,7 +785,7 @@ async def send_next_task(update: Update, user_id: str):
                 "📌 Завдання\n\n"
                 "⚠️ Обов'язково зробіть скрін виконаної дії!\n\n"
                 "❗ Важливо:\n"
-                "• Не дублюйте коментарі\n"
+                "• Скопіюйте текст коментаря під завданням 👇\n"
                 "• Не залишайте два однакових коментарі\n"
                 "• Перед публікацією перевірте, чи такого коментаря ще немає під постом\n\n"
                 f"🔗 Посилання:\n{link}\n\n"
@@ -1201,6 +1201,15 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             return
 
         file_id = update.message.photo[-1].file_id
+        existing = supabase.table("Tasks").select("id").eq("screenfile_id", file_id).execute()
+
+        if existing.data:
+            await update.message.reply_text(
+                "⚠️ Цей скріншот вже був використаний раніше.\n\n"
+                "📸 Будь ласка, зробіть скріншот виконання цього завдання і надішліть його."
+            )
+            return
+            
         task = current_task.get(user_id)
         account_name = user_selected_account.get(user_id)
         task_id = task["task_id"]
@@ -1682,6 +1691,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
