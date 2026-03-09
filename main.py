@@ -690,6 +690,12 @@ async def send_next_task(update: Update, user_id: str):
             pass
 
     for template in templates:
+        
+        print("TEMPLATE DEBUG:",
+              template.get("task_id"),
+              template.get("task_type"),
+              template.get("social_network"),
+              template.get("active"))
 
         if not template.get("active"):
             continue
@@ -709,6 +715,9 @@ async def send_next_task(update: Update, user_id: str):
             continue
 
         task_type = template.get("task_type")
+
+        print("DEBUG TASK TYPE:", task_type)
+        
         link = (template.get("link") or "").strip()
         reward = template.get("reward")
         action_text = TASK_TEXT.get(str(task_type).lower(), task_type)
@@ -717,6 +726,7 @@ async def send_next_task(update: Update, user_id: str):
         comment_row_id = None
 
         if str(task_type).lower() == "comment":
+            print("ENTER COMMENT BLOCK:", task_id)
 
             available_comments = [
                 c for c in comments
@@ -1630,6 +1640,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
