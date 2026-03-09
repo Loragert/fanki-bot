@@ -563,7 +563,10 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     text=msg
                 )
 
-                await safe_edit_caption(query, "✅ Підтверджено")
+                old_caption = query.message.caption or ""
+                new_caption = old_caption + "\n\n✅ Підтверджено"
+
+                await safe_edit_caption(query, new_caption)
 
             else:
 
@@ -584,7 +587,10 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                   text=msg
                 )
 
-                await safe_edit_caption(query, "❌ Відхилено")
+                old_caption = query.message.caption or ""
+                new_caption = old_caption + "\n\n❌ Відхилено"
+
+                await safe_edit_caption(query, new_caption)
 
         # =========================
         # WITHDRAW APPROVE / REJECT
@@ -1669,6 +1675,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
