@@ -773,6 +773,7 @@ async def send_next_task(update: Update, user_id: str):
 
             # РЕЗЕРВАЦІЯ КОМЕНТАРЯ
             from datetime import datetime
+            
             print("DEBUG RESERVE START")
 
             supabase.table("Tasks").insert({
@@ -786,7 +787,9 @@ async def send_next_task(update: Update, user_id: str):
                 "comment_text": comment_text
              }).execute()
             
-             print("DEBUG RESERVE DONE")
+            
+            print("DEBUG RESERVE DONE")
+            
 
 # ВИМИКАЄМО КОМЕНТАР В POOL
              supabase.table("Comment_Pool").update(
@@ -1735,6 +1738,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
