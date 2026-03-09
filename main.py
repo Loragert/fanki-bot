@@ -1077,7 +1077,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         for social, accs in socials.items():
             msg += f"{social}\n"
             for i, (acc, acc_id) in enumerate(accs, start=1):
-                msg += f"{i}. {acc} /remove {acc_id}\n"
+                msg += f"{i}. {acc} /remove_{acc_id}\n"
             msg += "\n"
 
         msg += "Оберіть соціальну мережу."
@@ -1645,7 +1645,7 @@ def build_app():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("remove", handle_user_message))
+    app.add_handler(MessageHandler(filters.Regex(r"^/remove_\d+"), handle_user_message))
     app.add_handler(CallbackQueryHandler(handle_callback))
 
     app.add_handler(
@@ -1669,6 +1669,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
