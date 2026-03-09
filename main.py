@@ -711,12 +711,7 @@ async def send_next_task(update: Update, user_id: str):
             pass
 
     for template in templates:
-        
-        print("TEMPLATE DEBUG:",
-              template.get("task_id"),
-              template.get("task_type"),
-              template.get("social_network"),
-              template.get("active"))
+       
 
         if not template.get("active"):
             continue
@@ -732,14 +727,26 @@ async def send_next_task(update: Update, user_id: str):
         if task_id in done_task_ids:
             continue
 
-        print("SKIP CHECK:", task_id, skipped_tasks.get((user_id, account_name), set()))
-
         if task_id in skipped_tasks.get((user_id, account_name), set()):
             continue
 
         task_type = template.get("task_type")
+        # --- COMMENT TIMER ---
+        if str(task_type).lower() == "comment":
 
-        print("DEBUG TASK TYPE:", task_type)
+            last_comment = supabase.table("Tasks").select("assign_date") \
+                                   .neq("comment_text", "") \
+                                   .order("assign_date", desc=True) \
+                                   .limit(1).execute()
+
+            if last_comment.data:
+                from datetime import datetime, timedelta
+
+                last_time = datetime.strptime(last_comment.data[0]["assign_date"], "%d.%m.%Y %H:%M")
+                now_time = datetime.now()
+
+                if (now_time - last_time) < timedelta(minutes=40):
+                    continue
         
         link = (template.get("link") or "").strip()
         reward = template.get("reward")
@@ -749,7 +756,6 @@ async def send_next_task(update: Update, user_id: str):
         comment_row_id = None
 
         if str(task_type).lower() == "comment":
-            print("ENTER COMMENT BLOCK:", task_id)
 
             available_comments = [
                 c for c in comments
@@ -1711,6 +1717,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
