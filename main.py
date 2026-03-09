@@ -743,7 +743,7 @@ async def send_next_task(update: Update, user_id: str):
                 from datetime import datetime, timedelta
 
                 last_time = datetime.fromisoformat(last_comment.data[0]["assign_date"])
-                now_time = datetime.now()
+                now_time = datetime.now(last_time.tzinfo)
 
                 if (now_time - last_time) < timedelta(minutes=40):
                     continue
@@ -1717,6 +1717,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
