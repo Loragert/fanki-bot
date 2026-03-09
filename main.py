@@ -115,7 +115,15 @@ def get_templates():
 
 
 def get_accounts():
-    return supabase.table("Accounts").select("*").execute().data
+    accounts = (
+        supabase
+        .table("Accounts")
+        .select("*")
+        .eq("in_cabinet", True)
+        .execute()
+        .data
+    )
+    return accounts
 
 
 def get_withdrawals():
@@ -833,7 +841,18 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     if status == "Under Review":
         await update.message.reply_text("⏳ Ваш акаунт тимчасово на перевірці.")
         return
+    # -------- REMOVE ACCOUNT ----------
+    if text.startswith("/remove_"):
 
+        account_id = text.replace("/remove_", "").strip()
+
+        supabase.table("Accounts").update({
+            "in_cabinet": False
+        }).eq("id", account_id).eq("telegram_id", user_id).execute()
+
+        await update.message.reply_text("✅ Акаунт видалено з кабінету.")
+
+        return
     # ---------------- BACK ----------------
 
     if text in ["⬅️ Назад", "Назад", "/cancel"]:
@@ -1649,6 +1668,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
