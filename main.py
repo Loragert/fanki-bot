@@ -772,9 +772,23 @@ async def send_next_task(update: Update, user_id: str):
             comment_row_id = comment.get("id")
 
             # РЕЗЕРВАЦІЯ КОМЕНТАРЯ
-            supabase.table("Comment_Pool").update(
-                {"active": False}
-            ).eq("id", comment_row_id).execute()
+            from datetime import datetime
+
+            supabase.table("Tasks").insert({
+                "telegram_id": user_id,
+                "social_network": social_network,
+                "account": account_name,
+                "task_id": task_id,
+                "link": link,
+                "status": "Reserved",
+                "assign_date": datetime.utcnow().isoformat(),
+                "comment_text": comment_text
+             }).execute()
+
+# ВИМИКАЄМО КОМЕНТАР В POOL
+             supabase.table("Comment_Pool").update(
+                 {"active": False}
+             ).eq("id", comment_row_id).execute()
 
         current_task[user_id] = {
             "task_id": task_id,
@@ -1718,6 +1732,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
