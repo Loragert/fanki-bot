@@ -531,6 +531,13 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             user_id = row["telegram_id"]
             task_id = row["task_id"]
 
+            template = supabase.table("TaskTemplates").select("*").eq("id", task_id).execute().data
+
+            task_type = template[0]["task_type"] if template else ""
+            link = template[0]["link"] if template else ""
+
+            action_text = TASK_TEXT.get(str(task_type).lower(), task_type)
+
             if action == "task_approve":
 
                 supabase.table("Tasks").update({
@@ -1675,6 +1682,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
