@@ -656,6 +656,9 @@ async def send_next_task(update: Update, user_id: str):
 
     social_network = user_selected_social[user_id]
     account_name = user_selected_account.get(user_id)
+    
+    # очищаємо пропущені завдання для нової сесії акаунта
+    skipped_tasks[(user_id, account_name)] = set()
 
     tasks = (
         supabase
@@ -1645,6 +1648,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
