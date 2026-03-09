@@ -1645,7 +1645,7 @@ def build_app():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("remove", handle_user_message))
+    app.add_handler(CommandHandler("/remove", handle_user_message))
     app.add_handler(CallbackQueryHandler(handle_callback))
 
     app.add_handler(
@@ -1669,6 +1669,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
