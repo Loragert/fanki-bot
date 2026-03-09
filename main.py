@@ -1070,14 +1070,14 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         socials = {}
 
         for row in approved:
-            socials.setdefault(row.get("social_network"), []).append(row.get("username"))
+            socials.setdefault(row.get("social_network"), []).append((row.get("username"), row.get("id")))
 
         msg = ""
 
         for social, accs in socials.items():
             msg += f"{social}\n"
-            for i, acc in enumerate(accs, start=1):
-                msg += f"{i}. {acc}\n"
+            for i, (acc, acc_id) in enumerate(accs, start=1):
+                msg += f"{i}. {acc} /remove_{acc_id}\n"
             msg += "\n"
 
         msg += "Оберіть соціальну мережу."
@@ -1668,6 +1668,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
