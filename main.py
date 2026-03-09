@@ -714,7 +714,7 @@ async def send_next_task(update: Update, user_id: str):
         if task_id in done_task_ids:
             continue
 
-        if task_id in skipped_tasks.get(user_id, set()):
+        if task_id in skipped_tasks.get((user_id, account_name), set()):
             continue
 
         task_type = template.get("task_type")
@@ -1141,7 +1141,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         task = current_task.get(user_id)
 
         if task:
-            skipped_tasks.setdefault(user_id, set()).add(task["task_id"])
+            skipped_tasks.setdefault((user_id, account_name), set()).add(task["task_id"])
 
         current_task.pop(user_id, None)
 
@@ -1648,6 +1648,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
