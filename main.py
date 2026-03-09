@@ -843,6 +843,8 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
     # --------  ACCOUNT ----------
     if text.startswith("/remove_"):
+        
+        account_id = text.replace("/remove_", "").strip()
 
         supabase.table("Accounts").update({
             "in_cabinet": False
@@ -1667,6 +1669,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
