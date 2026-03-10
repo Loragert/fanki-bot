@@ -749,7 +749,7 @@ async def send_next_task(update: Update, user_id: str):
                                    .qe("task_id", task_id) \
                                    .neq("comment_text", "") \
                                    .order("assign_date", desc=True) \
-                                   .limit(1).execute())
+                                   .limit(1).execute()
 
             if last_comment.data:
                 from datetime import datetime, timedelta
@@ -1742,6 +1742,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
