@@ -733,12 +733,23 @@ async def send_next_task(update: Update, user_id: str):
         task_type = template.get("task_type")
         # --- COMMENT TIMER ---
         if str(task_type).lower() == "comment":
+            recent_comments = supabase.table("Tasks")\
+                .select("account")\
+                .neq("comment_text", "")\
+                .order("assign_date", desc=True)\
+                .limit(7)\
+                .execute()
+
+            recent_accounts = [r["account"] for r in recent_comments.data]
+
+            if account_name in recent_accounts:
+                continue
 
             last_comment = supabase.table("Tasks").select("assign_date") \
+                                   .qe("task_id", task_id) \
                                    .neq("comment_text", "") \
                                    .order("assign_date", desc=True) \
-                                   .limit(1).execute()
-            print("DEBUG LAST COMMENT:", last_comment.data)
+                                   .limit(1).execute())
 
             if last_comment.data:
                 from datetime import datetime, timedelta
@@ -773,8 +784,6 @@ async def send_next_task(update: Update, user_id: str):
 
             # РЕЗЕРВАЦІЯ КОМЕНТАРЯ
             from datetime import datetime
-            
-            print("DEBUG RESERVE START")
 
             supabase.table("Tasks").insert({
                 "telegram_id": user_id,
@@ -786,9 +795,6 @@ async def send_next_task(update: Update, user_id: str):
                 "assign_date": datetime.utcnow().isoformat(),
                 "comment_text": comment_text
              }).execute()
-            
-            
-            print("DEBUG RESERVE DONE")
             
 
 # ВИМИКАЄМО КОМЕНТАР В POOL
@@ -1266,8 +1272,6 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             user_state[user_id] = "working"
             return
 
-        print("DEBAG INSERT:", user_id, account_name, task_id)
-
         res = supabase.table("Tasks").insert({
             "telegram_id": user_id,
             "social_network": task["social"],
@@ -1738,6 +1742,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
