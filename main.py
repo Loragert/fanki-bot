@@ -354,9 +354,6 @@ async def show_main_menu(update: Update):
 
         markup = ReplyKeyboardMarkup(
             [
-                ["📋 Завдання"],
-                ["💸 Виводи"],
-                ["💰 Змінити баланс"],
                 ["📢 Розсилка"],
                 ["📊 Статистика"],
                 ["⬅️ Назад"],
@@ -1742,6 +1739,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
