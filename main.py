@@ -516,7 +516,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         elif action in ["task_approve", "task_reject"]:
 
-            res = supabase.table("Tasks").select("*").eq("id", record_id).execute()
+            res = supabase.table("Tasks").select("*").eq("task_id", record_id).execute()
             if not res.data:
                 return
 
@@ -528,7 +528,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             user_id = row["telegram_id"]
             task_id = row["task_id"]
 
-            template = supabase.table("TaskTemplates").select("*").eq("id", task_id).execute().data
+            template = supabase.table("TaskTemplates").select("*").eq("task_id", task_id).execute().data
 
             task_type = template[0]["task_type"] if template else ""
             link = template[0]["link"] if template else ""
@@ -541,9 +541,9 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     "status": "Approved",
                     "paid": "Paid",
                     "approve_date": datetime.utcnow().isoformat()
-                }).eq("id", record_id).execute()
+                }).eq("task_id", record_id).execute()
 
-                template = supabase.table("TaskTemplates").select("*").eq("id", task_id).execute().data
+                template = supabase.table("TaskTemplates").select("*").eq("task_id", task_id).execute().data
 
                 reward = int(template[0]["reward"]) if template else 0
 
@@ -576,7 +576,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
                 supabase.table("Tasks").update({
                     "status": "Rejected"
-                }).eq("id", record_id).execute()
+                }).eq("task_id", record_id).execute()
 
                 msg = (
                     "❌ Завдання відхилено\n\n"
@@ -1739,6 +1739,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
