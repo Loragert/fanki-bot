@@ -285,6 +285,15 @@ async def handle_admin_callback(update: Update, context: ContextTypes.DEFAULT_TY
 
     data = query.data
 
+    parts = data.split("_")
+
+    if len(parts) >= 3:
+        action = parts[0] + "_" + parts[1]
+        record_id = parts[2]
+    else:
+        action = data
+        record_id = None
+
     users = get_users()
 
     if data == "admin_users":
@@ -1739,6 +1748,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
