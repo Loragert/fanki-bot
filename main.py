@@ -541,7 +541,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     "status": "Approved",
                     "paid": "Paid",
                     "approve_date": datetime.utcnow().isoformat()
-                }).eq("task_id", record_id).execute()
+                }).eq("id", record_id).execute()
 
                 template = supabase.table("TaskTemplates").select("*").eq("task_id", task_id).execute().data
 
@@ -576,7 +576,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
                 supabase.table("Tasks").update({
                     "status": "Rejected"
-                }).eq("task_id", record_id).execute()
+                }).eq("id", record_id).execute()
 
                 msg = (
                     "❌ Завдання відхилено\n\n"
@@ -1739,6 +1739,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
