@@ -525,7 +525,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         elif action in ["task_approve", "task_reject"]:
 
-            res = supabase.table("Tasks").select("*").eq("task_id", record_id).execute()
+            res = supabase.table("Tasks").select("*").eq("id", record_id).execute()
             if not res.data:
                 return
 
@@ -1748,6 +1748,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
