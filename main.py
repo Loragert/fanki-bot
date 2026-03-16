@@ -631,7 +631,12 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
                 await context.bot.send_message(
                     chat_id=int(user_id),
-                    text="✅ Ваш вивід підтверджено."
+                    text=(
+                        "✅ Ваш вивід підтверджено!\n\n"
+                        f"💰 Сума: {amount} Fanki\n"
+                        f"🏦 Binance ID: {row['binance_id']}\n\n"
+                        "🙏 Дякуємо за участь у Fanki!"
+                    )
                 )
 
                 await query.edit_message_text("✅ Вивід підтверджено")
@@ -646,7 +651,12 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
                 await context.bot.send_message(
                     chat_id=int(user_id),
-                    text="❌ Вивід відхилено. Баланс повернено."
+                    text=(
+                        "❌ Ваш запит на вивід відхилено\n\n"
+                        f"💰 Сума: {amount} Fanki\n"
+                        f"🏦 Binance ID: {row['binance_id']}\n\n"
+                        "💰 Кошти повернено на ваш баланс."
+                    )
                 )
 
                 await query.edit_message_text("❌ Вивід відхилено")
@@ -1761,6 +1771,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
