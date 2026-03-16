@@ -1571,6 +1571,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         text = update.message.text or ""
+        # withdraw flow
+        if await handle_withdraw(update, context):
+            return
 
         # ================= ADMIN =================
 
@@ -1755,6 +1758,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
