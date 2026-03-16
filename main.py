@@ -1384,7 +1384,7 @@ async def handle_withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user_id = update.effective_user.id
     text = update.message.text if update.message.text else ""
-    state = user_state.get(user_id)
+    state = user_state.get(user_id, None)
 
     if text in ["⬅️ Назад", "Назад"]:
 
@@ -1432,7 +1432,7 @@ async def handle_withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # ---------------- BINANCE ID ----------------
 
-    if state == "await_binance":
+    if user_state.get(user_id) == "await_binance":
 
         if not text.isdigit():
             await update.message.reply_text(
@@ -1456,7 +1456,7 @@ async def handle_withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # ---------------- AMOUNT ----------------
 
-    if state == "await_amount":
+    if user_state.get(user_id) == "await_amount":
 
         balance, _, _ = get_user_data(user_id)
 
@@ -1493,7 +1493,7 @@ async def handle_withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # ---------------- CONFIRM ----------------
 
-    if state == "confirm_withdraw" and text == "Так":
+    if user_state.get(user_id) == "confirm_withdraw" and text == "Так":
 
         amount = user_withdraw_amount.get(user_id)
 
@@ -1521,22 +1521,27 @@ async def handle_withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [
                 InlineKeyboardButton(
                     "✅ Підтвердити",
-                    callback_data=f"withdraw_approve|{withdraw_id}"
+                    callback_data=f"withdraw_approve_{withdraw_id}"
                 ),
                 InlineKeyboardButton(
                     "❌ Відхилити",
-                    callback_data=f"withdraw_reject|{withdraw_id}"
+                    callback_data=f"withdraw_reject_{withdraw_id}"
                 )
             ]
         ])
 
         await context.bot.send_message(
             ADMIN_ID[0],
-            f"Вивід\nUser: {user_id}\nСума: {amount}",
+            f"💸 Новий запит на вивід\n\nUser: {user_id}\nСума: {amount} Fanki",
             reply_markup=keyboard
         )
 
-        await update.message.reply_text("Заявка створена.")
+        await update.message.reply_text(
+            f"✅ Заявка на вивід створена\n\n"
+            f"💰 Сума: {amount} Fanki (${amount/1000:.2f})\n"
+            f"🏦 Binance ID: {user_binance_id[user_id]}\n\n"
+            f"Очікуйте підтвердження адміністратора."
+        )
 
         user_state[user_id] = None
         return True
@@ -1748,6 +1753,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
