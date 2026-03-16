@@ -1383,7 +1383,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 async def handle_withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user_id = update.effective_user.id
-    text = update.message.text if update.message.text else ""
+    text = update.message.text if update.message and update.message.text else ""
     state = user_state.get(user_id, None)
 
     if text in ["⬅️ Назад", "Назад"]:
@@ -1431,7 +1431,9 @@ async def handle_withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return True
 
     # ---------------- BINANCE ID ----------------
-
+    print("USER:", user_id)
+    print("STATE:", user_state.get(user_id))
+    print("TEXT:", text)
     if user_state.get(user_id) == "await_binance":
 
         if not text.isdigit():
@@ -1753,6 +1755,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
