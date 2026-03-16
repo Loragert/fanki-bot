@@ -1534,7 +1534,10 @@ async def handle_withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         await context.bot.send_message(
             ADMIN_ID[0],
-            f"💸 Новий запит на вивід\n\nUser: {user_id}\nСума: {amount} Fanki",
+            f"💸 Новий запит на вивід\n\n"
+            f"👤 User: {user_id}\n"
+            f"💰 Сума: {amount} Fanki\n"
+            f"🏦 Binance ID: {user_binance_id[user_id]}",
             reply_markup=keyboard
         )
 
@@ -1758,6 +1761,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
