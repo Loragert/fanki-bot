@@ -1523,11 +1523,11 @@ async def handle_withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [
                 InlineKeyboardButton(
                     "✅ Підтвердити",
-                    callback_data=f"withdraw_approve_{withdraw_id}"
+                    callback_data=f"withdraw_approve|{withdraw_id}"
                 ),
                 InlineKeyboardButton(
                     "❌ Відхилити",
-                    callback_data=f"withdraw_reject_{withdraw_id}"
+                    callback_data=f"withdraw_reject|{withdraw_id}"
                 )
             ]
         ])
@@ -1761,6 +1761,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
