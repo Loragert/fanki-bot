@@ -302,7 +302,7 @@ async def get_user_profile_data(user_id):
 
     # --- ВСІ ЗАВДАННЯ ---
     tasks = supabase.table("Tasks")\
-        .select("status, reward, assign_date")\
+        .select("status, task_id, assign_date, approve_date")\
         .eq("telegram_id", user_id)\
         .execute().data
 
@@ -313,21 +313,36 @@ async def get_user_profile_data(user_id):
     earned_total = 0
     earned_today = 0
 
+    templates = supabase.table("TaskTemplates")\
+        .select("task_id, reward")\
+        .execute().data
+
+    reward_map = {
+        int(t["task_id"]): int(t["reward"])
+        for t in templates
+    }
+
     for t in tasks:
 
         if t.get("status") == "Approved":
 
             tasks_total += 1
 
-            reward = int(t.get("reward") or 0)
+            task_id = int(t.get("task_id") or 0)
+            reward = reward_map.get(task_id, 0)
             earned_total += reward
 
-            if t.get("assign_date"):
-                d = datetime.fromisoformat(t["assign_date"]).date()
+            date_str = t.get("assign_date") or t.get("approve_date")
 
-                if d == today:
-                    tasks_today += 1
-                    earned_today += reward
+            if date_str:
+                try:
+                    d = datetime.fromisoformat(date_str).date()
+
+                    if d == today:
+                        tasks_today += 1
+                        earned_today += reward
+                except:
+                pass
 
     return {
         "fanki_balance": fanki_balance,
@@ -1899,6 +1914,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
