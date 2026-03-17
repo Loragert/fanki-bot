@@ -342,7 +342,7 @@ async def get_user_profile_data(user_id):
                         tasks_today += 1
                         earned_today += reward
                 except:
-                pass
+                    pass
 
     return {
         "fanki_balance": fanki_balance,
@@ -1914,6 +1914,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
