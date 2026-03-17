@@ -513,27 +513,27 @@ async def show_main_menu(update: Update):
 
     markup = ReplyKeyboardMarkup(
         [
-            ["Реєстрація акаунту"],
-            ["Мій кабінет"],
-            ["Інформація про бот"],
-            ["Завдання"],
-            ["Підтримка"],
-            ["Вивід"]
+            ["👤 Мій кабінет"]
+            ["➕ Реєстрація акаунту"],
+            ["ℹ️ Інформація про бот"],
+            ["📋 Завдання"],
+            ["🛠 Підтримка"],
+            ["💸 Вивід"]
         ],
         resize_keyboard=True
     )
 
     text = (
-        "👋 Ласкаво просимо до головного меню!\n\n"
-        "Тут ви можете:\n\n"
-        "Зареєструвати акаунт для роботи\n"
-        "Дізнатися інформацію про бот, валюту та методи виводу\n"
-        "Звернутися до підтримки\n"
-        "Подати заявку на вивід коштів\n"
-        "Отримати завдання\n\n"
-        "⚠️ Для отримання завдань необхідно спочатку зареєструвати акаунт.\n\n"
-        f"👥 Активних користувачів: {active_users}\n\n"
-        "Оберіть потрібний пункт нижче 👇"
+    "👋 Ласкаво просимо до головного меню!\n\n"
+    "📌 Тут ви можете:\n\n"
+    "➕ Зареєструвати акаунт для роботи\n"
+    "ℹ️ Дізнатися інформацію про бот, валюту та методи виводу\n"
+    "🛠 Звернутися до підтримки\n"
+    "💸 Подати заявку на вивід коштів\n"
+    "📋 Отримати завдання\n\n"
+    "⚠️ Для отримання завдань необхідно спочатку зареєструвати акаунт.\n\n"
+    f"👥 Активних користувачів: {active_users}\n\n"
+    "👇 Оберіть потрібний пункт нижче"
     )
 
     await update.message.reply_text(text, reply_markup=markup)
@@ -556,7 +556,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_state[user_id] = "await_accept"
 
     text = f"""
-Привіт, {username}! Раді вітати вас у боті з онлайн-завданнями.
+👋Привіт, {username}! Раді вітати вас у боті з онлайн-завданнями.
 
 📌 Правила роботи:
 
@@ -1019,7 +1019,7 @@ async def send_next_task(update: Update, user_id: str):
         )
 
         await update.message.reply_text(
-            "Після виконання натисніть кнопку нижче.",
+            "✅Після виконання натисніть кнопку нижче.",
             reply_markup=markup
         )
 
@@ -1084,7 +1084,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     # ---------------- WITHDRAW BUTTON ----------------
 
-    if text == "Вивід":
+    if text == "💸 Вивід":
         user_state.pop(user_id, None)
         return await handle_withdraw(update, context)
 
@@ -1116,12 +1116,12 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     # ---------------- CABINET ----------------
 
-    if text == "Мій кабінет":
+    if text == "👤 Мій кабінет":
         
         data = await get_user_profile_data(user_id)
         
         if not data:
-            await update.message.reply_text("Помилка завантаження профілю")
+            await update.message.reply_text("🧱Помилка завантаження профілю")
             return
             
         profile_text = generate_profile_text(**data)
@@ -1131,7 +1131,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     # ---------------- INFO ----------------
 
-    if text == "Інформація про бот":
+    if text == "ℹ️ Інформація про бот":
 
         await update.message.reply_text(
             "🤖Про платформу🚀\n"
@@ -1146,7 +1146,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     # ---------------- SUPPORT ----------------
 
-    if text == "Підтримка":
+    if text == "🛠 Підтримка":
 
         await update.message.reply_text(
             "📩 Підтримка:\nЯкщо у вас виникли питання або проблеми — зверніться до адміністратора."
@@ -1155,7 +1155,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     # ---------------- REGISTER ACCOUNT ----------------
 
-    if text == "Реєстрація акаунту":
+    if text == "➕ Реєстрація акаунту":
 
         markup = ReplyKeyboardMarkup(
             [["Instagram", "TikTok", "Facebook", "Google Maps"],
@@ -1195,13 +1195,13 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         allowed_socials = ["Instagram", "TikTok", "Facebook", "Google Maps"]
 
         if text not in allowed_socials:
-            await update.message.reply_text("Оберіть соцмережу кнопкою")
+            await update.message.reply_text("🌍Оберіть соцмережу кнопкою")
             return
 
         user_selected_social[user_id] = text
         user_state[user_id] = "await_nick"
 
-        await update.message.reply_text("Введіть нік без @:")
+        await update.message.reply_text("✍️Введіть нік без @:")
         return
 
     # ---------------- ENTER NICK ----------------
@@ -1209,7 +1209,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     if state == "await_nick":
 
         if len(text) < 2:
-            await update.message.reply_text("Занадто коротке ім’я.")
+            await update.message.reply_text("🤷‍♂️Занадто коротке ім’я.")
             return
 
         accounts = get_accounts()
@@ -1218,13 +1218,13 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             str(row.get("username")).lower() == text.lower()
             for row in accounts
         ):
-            await update.message.reply_text("Це ім’я вже зареєстроване.")
+            await update.message.reply_text("🤷‍♂️Це ім’я вже зареєстроване.")
             return
 
         user_selected_account[user_id] = text
         user_state[user_id] = "await_link"
 
-        await update.message.reply_text("Введіть посилання на профіль:")
+        await update.message.reply_text("✍️Введіть посилання на профіль:")
         return
 
     # ---------------- ENTER LINK ----------------
@@ -1234,7 +1234,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         link = text.strip()
 
         if not link.startswith("http"):
-            await update.message.reply_text("Посилання має починатися з http або https.")
+            await update.message.reply_text("💡Посилання має починатися з http або https.")
             return
 
         accounts = get_accounts()
@@ -1242,7 +1242,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         for row in accounts:
 
             if (row.get("profile_link") or "").lower() == link.lower():
-                await update.message.reply_text("Цей профіль вже зареєстрований.")
+                await update.message.reply_text("🤷‍♂️Цей профіль вже зареєстрований.")
                 return
 
         res = supabase.table("Accounts").insert({
@@ -1281,11 +1281,11 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 
         user_state[user_id] = None
 
-        await update.message.reply_text("Акаунт відправлено на модерацію.")
+        await update.message.reply_text("🔎Акаунт відправлено на модерацію.")
         return
 # ---------------- TASKS MENU ----------------
 
-    if text == "Завдання":
+    if text == "📋 Завдання":
 
         accounts = get_accounts()
 
@@ -1296,7 +1296,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         ]
 
         if not approved:
-            await update.message.reply_text("Немає підтверджених акаунтів.")
+            await update.message.reply_text("⚙️Немає підтверджених акаунтів.")
             return
 
         socials = {}
@@ -1341,7 +1341,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         ]
 
         if not approved_accounts:
-            await update.message.reply_text("Немає акаунтів у цій мережі.")
+            await update.message.reply_text("⚙️Немає акаунтів у цій мережі.")
             return
 
         buttons = []
@@ -1403,12 +1403,12 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     if text == "✅ Виконано" and state == "working":
 
         if user_id not in current_task:
-            await update.message.reply_text("Немає активного завдання.")
+            await update.message.reply_text("🤷‍♂️Немає активного завдання.")
             return
 
         user_state[user_id] = "await_screenshot"
 
-        await update.message.reply_text("Надішліть скрін.")
+        await update.message.reply_text("📸Надішліть скрін.")
         return
 
     # ---------------- SCREENSHOT ----------------
@@ -1416,7 +1416,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     if state == "await_screenshot":
 
         if not update.message.photo:
-            await update.message.reply_text("Будь ласка, надішліть скріншот.")
+            await update.message.reply_text("📸Будь ласка, надішліть скріншот.")
             return
 
         file_id = update.message.photo[-1].file_id
@@ -1434,7 +1434,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         task_id = task["task_id"]
 
         if not task:
-            await update.message.reply_text("Помилка. Спробуйте ще раз.")
+            await update.message.reply_text("⚠️Помилка. Спробуйте ще раз.")
             user_state[user_id] = "working"
             return
 
@@ -1560,7 +1560,7 @@ async def handle_withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # ---------------- START WITHDRAW ----------------
 
-    if text == "Вивід":
+    if text == "💸 Вивід":
 
         balance, _, _ = get_user_data(user_id)
 
@@ -1922,6 +1922,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
