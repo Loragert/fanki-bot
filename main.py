@@ -685,6 +685,7 @@ async def send_next_task(update: Update, user_id: str):
         .eq("active", True)
         .execute()
     ).data
+
     accounts = supabase.table("Accounts").select("*").execute().data
 
     if user_id not in user_selected_social:
@@ -712,12 +713,13 @@ async def send_next_task(update: Update, user_id: str):
         ),
         None
     )
-    
-    user_gender = (account_row.get("gender") or "all").lower()
-    
+
     if not account_row:
         await update.message.reply_text("Акаунт не підтверджений.")
         return
+
+    # ✅ ГЕНДЕР КОРИСТУВАЧА
+    user_gender = str(account_row.get("gender") or "all").strip().lower()
 
     # already used task_ids
     done_task_ids = set()
@@ -729,17 +731,16 @@ async def send_next_task(update: Update, user_id: str):
             pass
 
     for template in templates:
-       
 
         if not template.get("active"):
             continue
-# --- GENDER FILTER TASK ---
-        task_gender = (template.get("gender_target") or "all").lower()
 
-        if task_gender != "all" and task_gender != user_gender:
-            continue
-            
         if str(template.get("social_network")).lower() != str(social_network).lower():
+            continue
+
+        # ✅ ФІЛЬТР ПО ГЕНДЕРУ ЗАВДАННЯ
+        task_gender = str(template.get("gender_target") or "all").strip().lower()
+        if task_gender != "all" and task_gender != user_gender:
             continue
 
         try:
@@ -754,7 +755,8 @@ async def send_next_task(update: Update, user_id: str):
             continue
 
         task_type = template.get("task_type")
-        # --- COMMENT TIMER ---
+
+        # --- COMMENT TIMER (НЕ ЧІПАЄМО) ---
         if str(task_type).lower() == "comment":
             recent_comments = supabase.table("Tasks")\
                 .select("account")\
@@ -769,10 +771,10 @@ async def send_next_task(update: Update, user_id: str):
                 continue
 
             last_comment = supabase.table("Tasks").select("assign_date") \
-                                   .eq("task_id", task_id) \
-                                   .neq("comment_text", "") \
-                                   .order("assign_date", desc=True) \
-                                   .limit(1).execute()
+                .eq("task_id", task_id) \
+                .neq("comment_text", "") \
+                .order("assign_date", desc=True) \
+                .limit(1).execute()
 
             if last_comment.data:
                 from datetime import datetime, timedelta
@@ -782,7 +784,7 @@ async def send_next_task(update: Update, user_id: str):
 
                 if (now_time - last_time) < timedelta(minutes=40):
                     continue
-        
+
         link = (template.get("link") or "").strip()
         reward = template.get("reward")
         action_text = TASK_TEXT.get(str(task_type).lower(), task_type)
@@ -791,34 +793,32 @@ async def send_next_task(update: Update, user_id: str):
         comment_row_id = None
 
         if str(task_type).lower() == "comment":
-            
-# --- GENDER COMMENTS ---
-            
+
+            # ✅ 1. СПОЧАТКУ ШУКАЄМО ПО ГЕНДЕРУ
             available_comments = [
                 c for c in comments
                 if int(c.get("task_id")) == int(task_id)
                 and c.get("active") == True
-                and (str(c.get("gender") or "all").lower() in [user_gender, "all"])
+                and str(c.get("gender") or "all").strip().lower() == user_gender
             ]
+
+            # ✅ 2. FALLBACK НА ALL
+            if not available_comments:
+                available_comments = [
+                    c for c in comments
+                    if int(c.get("task_id")) == int(task_id)
+                    and c.get("active") == True
+                    and str(c.get("gender") or "all").strip().lower() == "all"
+                ]
 
             if not available_comments:
-
-    # fallback на універсальні
-            available_comments = [
-                c for c in comments
-                if int(c.get("task_id")) == int(task_id)
-                and c.get("active") == True
-                and str(c.get("gender") or "all").lower() == "all"
-            ]
-
-    if not available_comments:
-        continue
+                continue
 
             comment = available_comments[0]
             comment_text = comment.get("comment")
             comment_row_id = comment.get("id")
 
-            # РЕЗЕРВАЦІЯ КОМЕНТАРЯ
+            # РЕЗЕРВАЦІЯ
             from datetime import datetime
 
             supabase.table("Tasks").insert({
@@ -830,10 +830,9 @@ async def send_next_task(update: Update, user_id: str):
                 "status": "Reserved",
                 "assign_date": datetime.utcnow().isoformat(),
                 "comment_text": comment_text
-             }).execute()
-            
+            }).execute()
 
-# ВИМИКАЄМО КОМЕНТАР В POOL
+            # ВИМИКАЄМО КОМЕНТАР
             supabase.table("Comment_Pool").update(
                 {"active": False}
             ).eq("id", comment_row_id).execute()
@@ -1791,6 +1790,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
