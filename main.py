@@ -61,6 +61,8 @@ ADMIN_ID = [6699691752]
 TASK_MODERATOR_ID = 877030342
 TASK_AUTO_ID = 7489327594
 
+def is_admin(user_id):
+    return user_id in ADMIN_ID
 
 # ==============================
 # ERROR NOTIFYy
@@ -1615,186 +1617,132 @@ async def handle_withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user_id = update.effective_user.id
-    _, _, status = get_user_data(user_id)
 
-    if status == "Banned":
-        if update.message:
-            await update.message.reply_text(
-                "⛔ Ваш акаунт заблоковано адміністрацією."
-            )
+    if not update.message:
+        return
+
+    text = update.message.text or ""
+
+    # --- withdraw ---
+    if await handle_withdraw(update, context):
         return
 
     try:
 
-        if not update.message:
-            return
+        # ================= ADMIN =================
+        if is_admin(user_id):
 
-        text = update.message.text or ""
-        # withdraw flow
-        if await handle_withdraw(update, context):
-            return
+            text = text.strip()
+
+            # RESET
+            if text in ["📢 Розсилка", "📊 Статистика", "💰 Змінити баланс", "🔒 Бан користувача"]:
+                admin_state.pop(user_id, None)
+
+            # BACK
+            if text in ["⬅️ Назад", "Назад"]:
+                admin_state.pop(user_id, None)
+                await show_main_menu(update)
+                return
+
+            # STATISTICS
+            if text == "📊 Статистика":
+                users = get_users()
+                tasks = get_tasks()
+                withdrawals = get_withdrawals()
+
+                total_balance = sum(int(r.get("balance") or 0) for r in users)
+                total_users = len(users)
+
+                pending_tasks = sum(1 for r in tasks if r.get("status") == "Pending")
+                pending_withdraws = sum(1 for r in withdrawals if r.get("status") == "Pending")
+
+                await update.message.reply_text(
+                    f"📊 Статистика\n\n"
+                    f"👥 Користувачів: {total_users}\n"
+                    f"💰 Сума балансів: {total_balance}\n"
+                    f"📋 Pending задач: {pending_tasks}\n"
+                    f"💸 Pending виводів: {pending_withdraws}"
+                )
+                return
+
+            # CHANGE BALANCE
+            if text == "💰 Змінити баланс":
+                admin_state[user_id] = {"step": "id"}
+                await update.message.reply_text("Введіть ID користувача:")
+                return
+
+            # BAN
+            if text == "🔒 Бан користувача":
+                admin_state[user_id] = {"step": "ban_id"}
+                await update.message.reply_text("Введіть ID користувача:")
+                return
+
+            # BROADCAST
+            if text == "📢 Розсилка":
+                admin_state[user_id] = {"step": "broadcast"}
+                await update.message.reply_text("Введіть текст розсилки:")
+                return
+
+            # STATE
+            state = admin_state.get(user_id)
+
+            if state:
+
+                if state["step"] == "id":
+                    admin_state[user_id] = {
+                        "step": "amount",
+                        "target_id": text
+                    }
+                    await update.message.reply_text("Введіть суму (+500 або -300):")
+                    return
+
+                if state["step"] == "amount":
+                    try:
+                        amount = int(text)
+                    except:
+                        await update.message.reply_text("❗ Введіть число")
+                        return
+
+                    target_id = state["target_id"]
+
+                    update_user_balance(target_id, amount)
+
+                    await update.message.reply_text("✅ Баланс змінено")
+                    admin_state.pop(user_id, None)
+                    return
+
+                if state["step"] == "ban_id":
+                    supabase.table("Users").update({
+                        "status": "Banned"
+                    }).eq("telegram_id", int(text)).execute()
+
+                    await update.message.reply_text("🔒 Користувача заблоковано")
+                    admin_state.pop(user_id, None)
+                    return
+
+                if state["step"] == "broadcast":
+
+                    users = get_users()
+
+                    for r in users:
+                        try:
+                            await context.bot.send_message(
+                                r.get("telegram_id"),
+                                text
+                            )
+                        except:
+                            pass
+
+                    await update.message.reply_text("✅ Розсилка завершена")
+                    admin_state.pop(user_id, None)
+                    return
+
         # ================= USER =================
-
         await handle_user_message(update, context)
 
     except Exception:
         logging.error(traceback.format_exc())
-        if update.message:
-            await update.message.reply_text("Сталася помилка")
-        
-
-        # ================= ADMIN =================
-
-    if is_admin(user_id):
-
-        text = text.strip()
-
-    # --- RESET STATE ---
-        if text in ["⬅️ Назад", "📢 Розсилка", "📊 Статистика", "💰 Змінити баланс", "🔒 Бан користувача"]:
-            if text != "⬅️ Назад":
-                admin_state.pop(user_id, None)
-
-    # --- BACK ---
-        if text in ["⬅️ Назад", "Назад"]:
-            admin_state.pop(user_id, None)
-            await show_main_menu(update)
-            return
-
-    # --- STATISTICS ---
-        if text == "📊 Статистика":
-
-            users = get_users()
-            tasks = get_tasks()
-            withdrawals = get_withdrawals()
-
-            total_balance = sum(int(r.get("balance") or 0) for r in users)
-            total_users = len(users)
-
-            pending_tasks = sum(1 for r in tasks if r.get("status") == "Pending")
-            pending_withdraws = sum(1 for r in withdrawals if r.get("status") == "Pending")
-
-            await update.message.reply_text(
-            f"📊 Статистика\n\n"
-            f"👥 Користувачів: {total_users}\n"
-            f"💰 Сума балансів: {total_balance}\n"
-            f"📋 Pending задач: {pending_tasks}\n"
-            f"💸 Pending виводів: {pending_withdraws}"
-            )
-            return
-
-    # --- CHANGE BALANCE START ---
-        if text == "💰 Змінити баланс":
-            admin_state[user_id] = {"step": "id"}
-            await update.message.reply_text("Введіть ID користувача:")
-            return
-
-    # --- BAN START ---
-        if text == "🔒 Бан користувача":
-            admin_state[user_id] = {"step": "ban_id"}
-            await update.message.reply_text("Введіть ID користувача:")
-            return
-
-    # --- BROADCAST START ---
-        if text == "📢 Розсилка":
-            admin_state[user_id] = {"step": "broadcast"}
-            await update.message.reply_text("Введіть текст розсилки:")
-            return
-
-    # ================= STATE HANDLER =================
-
-        state = admin_state.get(user_id)
-
-        if state:
-
-        # --- CHANGE BALANCE FLOW ---
-            if state.get("step") == "id":
-                admin_state[user_id] = {
-                "step": "amount",
-                "target_id": text
-                }
-                await update.message.reply_text("Введіть суму (+500 або -300):")
-                return
-
-            if state.get("step") == "amount":
-
-                try:
-                    amount = int(text)
-                except:
-                    await update.message.reply_text("❗ Введіть число")
-                    return
-
-                target_id = state.get("target_id")
-
-                user = supabase.table("Users")\
-                    .select("*")\
-                    .eq("telegram_id", int(target_id))\
-                    .execute().data
-
-                if not user:
-                    await update.message.reply_text("❗ Користувача не знайдено")
-                    admin_state.pop(user_id, None)
-                    return
-
-                current_balance = int(user[0].get("balance", 0))
-                new_balance = current_balance + amount
-
-                supabase.table("Users")\
-                    .update({"balance": new_balance})\
-                    .eq("telegram_id", int(target_id))\
-                    .execute()
-
-                log_admin_action(user_id, "change_balance", target_id, str(amount))
-
-                await update.message.reply_text(
-                    f"✅ Баланс змінено\nНовий баланс: {new_balance} Fanki"
-                )
-
-                admin_state.pop(user_id, None)
-                return
-
-        # --- BAN FLOW ---
-            if state.get("step") == "ban_id":
-
-                target_id = text
-
-                supabase.table("Users")\
-                    .update({"status": "Banned"})\
-                    .eq("telegram_id", int(target_id))\
-                    .execute()
-
-                log_admin_action(user_id, "ban_user", target_id)
-
-                await update.message.reply_text("🔒 Користувача заблоковано")
-
-                admin_state.pop(user_id, None)
-                return
-
-        # --- BROADCAST FLOW ---
-            if state.get("step") == "broadcast":
-
-                users = get_users()
-
-                sent = 0
-
-                for r in users:
-                    try:
-                        await context.bot.send_message(
-                            r.get("telegram_id"),
-                            text
-                        )
-                        sent += 1
-                    except:
-                        pass
-
-                await update.message.reply_text(f"✅ Розсилка завершена\nНадіслано: {sent}")
-
-                admin_state.pop(user_id, None)
-                return
-
-        return
-        
-
-   
+        await update.message.reply_text("Сталася помилка")
 
 # ==============================
 # BUILD APP
