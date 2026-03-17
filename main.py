@@ -228,7 +228,66 @@ def get_user_stats(user_id):
 
 
     return reg_date, completed_tasks
+    
+# ==============================
+# USER PROFILE DATA (CABINET)
+# ==============================
 
+async def get_user_profile_data(user_id):
+
+    user = supabase.table("Users")\
+        .select("*")\
+        .eq("telegram_id", int(user_id))\
+        .execute().data
+
+    if not user:
+        return None
+
+    user = user[0]
+
+    from datetime import datetime
+
+    # --- БАЛАНС ---
+    fanki_balance = int(user.get("balance", 0))
+    reg_date = str(user.get("created_at", ""))[:10]
+
+    # --- ВСІ ЗАВДАННЯ ---
+    tasks = supabase.table("Tasks")\
+        .select("status, reward, assign_date")\
+        .eq("telegram_id", user_id)\
+        .execute().data
+
+    today = datetime.utcnow().date()
+
+    tasks_total = 0
+    tasks_today = 0
+    earned_total = 0
+    earned_today = 0
+
+    for t in tasks:
+
+        if t.get("status") == "Approved":
+
+            tasks_total += 1
+
+            reward = int(t.get("reward") or 0)
+            earned_total += reward
+
+            if t.get("assign_date"):
+                d = datetime.fromisoformat(t["assign_date"]).date()
+
+                if d == today:
+                    tasks_today += 1
+                    earned_today += reward
+
+    return {
+        "fanki_balance": fanki_balance,
+        "tasks_total": tasks_total,
+        "tasks_today": tasks_today,
+        "earned_total": earned_total,
+        "earned_today": earned_today,
+        "reg_date": reg_date
+    }
 
 # ==============================
 # ADMIN PANEL
@@ -453,6 +512,8 @@ async def safe_edit_caption(query, text):
         await query.edit_message_caption(text)
     except:
         pass
+
+
 # ==============================
 # CALLBACK HANDLER
 # ==============================
@@ -983,19 +1044,17 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     # ---------------- CABINET ----------------
 
-    if text == "Мій кабінет":
+    if text == "👤 Кабінет":
+        
+        data = await get_user_profile_data(user_id)
+        
+        if not data:
+            await update.message.reply_text("Помилка завантаження профілю")
+            return
+            
+        profile_text = generate_profile_text(**data)
 
-        balance, total, status = get_user_data(user_id)
-        reg_date, completed_tasks = get_user_stats(user_id)
-
-        await update.message.reply_text(
-            f"Баланс: {balance} Fanki\n"
-            f"Всього зароблено: {total}\n"
-            f"Виконано завдань: {completed_tasks}\n"
-            f"Дата реєстрації: {reg_date}\n"
-            f"Статус: {status}\n"
-            f"Конвертація: {balance/1000:.2f}$"
-        )
+        await update.message.reply_text(profile_text)
         return
 
     # ---------------- INFO ----------------
@@ -1405,6 +1464,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         user_state[user_id] = None
         await send_next_task(update, user_id)
         return
+
 # ==============================
 # WITHDRAW (USER SIDE)
 # ==============================
@@ -1790,6 +1850,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
