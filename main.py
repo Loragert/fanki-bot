@@ -298,7 +298,15 @@ async def get_user_profile_data(user_id):
 
     # --- БАЛАНС ---
     fanki_balance = int(user.get("balance", 0))
-    reg_date = str(user.get("created_at", ""))[:10]
+    from datetime import datetime
+
+    reg_date_raw = user.get("register")
+
+    if reg_date_raw:
+        dt = datetime.fromisoformat(reg_date_raw)
+        reg_date = dt.strftime("%d.%m.%Y")
+    else:
+        reg_date = "—"
 
     # --- ВСІ ЗАВДАННЯ ---
     tasks = supabase.table("Tasks")\
@@ -1914,6 +1922,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
