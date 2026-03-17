@@ -497,7 +497,7 @@ async def show_main_menu(update: Update):
                 ["📢 Розсилка"],
                 ["📊 Статистика"],
                 ["⬅️ Назад"],
-                ["💰 Змінити баланс"},
+                ["💰 Змінити баланс"],
                 ["🔒 Бан користувача"]
             ],
             resize_keyboard=True
@@ -1923,6 +1923,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
