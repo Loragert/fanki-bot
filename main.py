@@ -362,112 +362,6 @@ async def get_user_profile_data(user_id):
     }
 
 # ==============================
-# ADMIN PANEL
-# ==============================
-
-def is_admin(user_id):
-    return user_id in ADMIN_ID
-
-
-def log_admin_action(admin_id, action, target_user_id="", details=""):
-
-    now = datetime.utcnow().isoformat()
-
-    supabase.table("AdminLogs").insert({
-        "date": now,
-        "admin_id": str(admin_id),
-        "action": action,
-        "target_user_id": str(target_user_id),
-        "details": details
-    }).execute()
-
-
-async def show_admin_panel(update, context):
-
-    keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("👤 Користувачі", callback_data="admin_users")],
-        [InlineKeyboardButton("📊 Аналітика", callback_data="admin_stats")]
-    ])
-
-    if update.callback_query:
-
-        await update.callback_query.edit_message_text(
-            "🛠 Адмін панель",
-            reply_markup=keyboard
-        )
-
-    else:
-
-        await update.message.reply_text(
-            "🛠 Адмін панель",
-            reply_markup=keyboard
-        )
-
-
-async def handle_admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
-    query = update.callback_query
-    await query.answer()
-
-    admin_id = update.effective_user.id
-
-    if not is_admin(admin_id):
-        return
-
-    data = query.data
-
-    parts = data.split("_")
-
-    if len(parts) >= 3:
-        action = parts[0] + "_" + parts[1]
-        record_id = parts[2]
-    else:
-        action = data
-        record_id = None
-
-    users = get_users()
-
-    if data == "admin_users":
-
-        keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🔍 Пошук по ID", callback_data="admin_search_user")],
-            [InlineKeyboardButton("⬅️ Назад", callback_data="admin_back")]
-        ])
-
-        await query.edit_message_text(
-            "👤 Користувачі",
-            reply_markup=keyboard
-        )
-
-    elif data == "admin_search_user":
-
-        context.user_data["admin_state"] = "await_user_id"
-
-        await query.edit_message_text("Введіть ID користувача:")
-
-    elif data == "admin_back":
-
-        await show_admin_panel(update, context)
-
-    elif data == "admin_stats":
-
-        total_users = len(users)
-
-        active = sum(1 for r in users if r.get("status") == "Active")
-        banned = sum(1 for r in users if r.get("status") == "Banned")
-
-        total_balance = sum(
-            int(r.get("balance") or 0) for r in users
-        )
-
-        await query.edit_message_text(
-            f"📊 Аналітика\n\n"
-            f"👥 Всього користувачів: {total_users}\n"
-            f"🟢 Active: {active}\n"
-            f"🔴 Banned: {banned}\n"
-            f"💰 Сума балансів: {total_balance}"
-        )
-# ==============================
 # MENU
 # ==============================
 
@@ -1714,7 +1608,7 @@ async def handle_withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return True
 
     return False
-# ==============================
+ # ==============================
 # MESSAGE ROUTER
 # ==============================
 
@@ -1740,156 +1634,156 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if await handle_withdraw(update, context):
             return
 
-        # ================= ADMIN =================
+# ================= ADMIN =================
 
-        if is_admin(user_id):
+if is_admin(user_id):
 
-            if text in ["⬅️ Назад", "Назад"]:
+    text = text.strip()
+
+    # --- RESET STATE ---
+    if text in ["⬅️ Назад", "📢 Розсилка", "📊 Статистика", "💰 Змінити баланс", "🔒 Бан користувача"]:
+        if text != "⬅️ Назад":
+            admin_state.pop(user_id, None)
+
+    # --- BACK ---
+    if text in ["⬅️ Назад", "Назад"]:
+        admin_state.pop(user_id, None)
+        await show_main_menu(update)
+        return
+
+    # --- STATISTICS ---
+    if text == "📊 Статистика":
+
+        users = get_users()
+        tasks = get_tasks()
+        withdrawals = get_withdrawals()
+
+        total_balance = sum(int(r.get("balance") or 0) for r in users)
+        total_users = len(users)
+
+        pending_tasks = sum(1 for r in tasks if r.get("status") == "Pending")
+        pending_withdraws = sum(1 for r in withdrawals if r.get("status") == "Pending")
+
+        await update.message.reply_text(
+            f"📊 Статистика\n\n"
+            f"👥 Користувачів: {total_users}\n"
+            f"💰 Сума балансів: {total_balance}\n"
+            f"📋 Pending задач: {pending_tasks}\n"
+            f"💸 Pending виводів: {pending_withdraws}"
+        )
+        return
+
+    # --- CHANGE BALANCE START ---
+    if text == "💰 Змінити баланс":
+        admin_state[user_id] = {"step": "id"}
+        await update.message.reply_text("Введіть ID користувача:")
+        return
+
+    # --- BAN START ---
+    if text == "🔒 Бан користувача":
+        admin_state[user_id] = {"step": "ban_id"}
+        await update.message.reply_text("Введіть ID користувача:")
+        return
+
+    # --- BROADCAST START ---
+    if text == "📢 Розсилка":
+        admin_state[user_id] = {"step": "broadcast"}
+        await update.message.reply_text("Введіть текст розсилки:")
+        return
+
+    # ================= STATE HANDLER =================
+
+    state = admin_state.get(user_id)
+
+    if state:
+
+        # --- CHANGE BALANCE FLOW ---
+        if state.get("step") == "id":
+            admin_state[user_id] = {
+                "step": "amount",
+                "target_id": text
+            }
+            await update.message.reply_text("Введіть суму (+500 або -300):")
+            return
+
+        if state.get("step") == "amount":
+
+            try:
+                amount = int(text)
+            except:
+                await update.message.reply_text("❗ Введіть число")
+                return
+
+            target_id = state.get("target_id")
+
+            user = supabase.table("Users")\
+                .select("*")\
+                .eq("telegram_id", int(target_id))\
+                .execute().data
+
+            if not user:
+                await update.message.reply_text("❗ Користувача не знайдено")
                 admin_state.pop(user_id, None)
-                await show_main_menu(update)
                 return
 
-            # -------- STATISTICS --------
+            current_balance = int(user[0].get("balance", 0))
+            new_balance = current_balance + amount
 
-            if text == "📊 Статистика":
+            supabase.table("Users")\
+                .update({"balance": new_balance})\
+                .eq("telegram_id", int(target_id))\
+                .execute()
 
-                users = get_users()
-                tasks = get_tasks()
-                withdrawals = get_withdrawals()
+            log_admin_action(user_id, "change_balance", target_id, str(amount))
 
-                total_balance = sum(
-                    int(r.get("balance") or 0) for r in users
-                )
+            await update.message.reply_text(
+                f"✅ Баланс змінено\nНовий баланс: {new_balance} Fanki"
+            )
 
-                total_users = len(users)
+            admin_state.pop(user_id, None)
+            return
 
-                pending_tasks = sum(
-                    1 for r in tasks if r.get("status") == "Pending"
-                )
+        # --- BAN FLOW ---
+        if state.get("step") == "ban_id":
 
-                pending_withdraws = sum(
-                    1 for r in withdrawals if r.get("status") == "Pending"
-                )
+            target_id = text
 
-                await update.message.reply_text(
-                    f"👥 Користувачів: {total_users}\n"
-                    f"💰 Сума балансів: {total_balance}\n"
-                    f"📋 Pending задач: {pending_tasks}\n"
-                    f"💸 Pending виводів: {pending_withdraws}"
-                )
-                return
+            supabase.table("Users")\
+                .update({"status": "Banned"})\
+                .eq("telegram_id", int(target_id))\
+                .execute()
 
-            
-            # -------- CHANGE BALANCE --------
+            log_admin_action(user_id, "ban_user", target_id)
 
-            if text == "💰 Змінити баланс":
-                admin_state[user_id] = "await_balance_id"
-                await update.message.reply_text("Введіть ID користувача:")
-                return
+            await update.message.reply_text("🔒 Користувача заблоковано")
 
-            if admin_state.get(user_id) == "await_balance_id":
-                admin_state[user_id] = ("await_balance_amount", text)
-                await update.message.reply_text("Введіть суму (+500 або -300):")
-                return
+            admin_state.pop(user_id, None)
+            return
 
-            if isinstance(admin_state.get(user_id), tuple):
+        # --- BROADCAST FLOW ---
+        if state.get("step") == "broadcast":
 
-                state_name, target_id = admin_state[user_id]
+            users = get_users()
 
-                if state_name == "await_balance_amount":
+            sent = 0
 
-                    try:
-                        amount = int(text)
-                    except:
-                        await update.message.reply_text("Введіть число.")
-                        return
+            for r in users:
+                try:
+                    await context.bot.send_message(
+                        r.get("telegram_id"),
+                        text
+                    )
+                    sent += 1
+                except:
+                    pass
 
-                    if amount >= 0:
-                        update_user_balance(target_id, amount)
-                    else:
-                        deduct_user_balance(target_id, abs(amount))
+            await update.message.reply_text(f"✅ Розсилка завершена\nНадіслано: {sent}")
 
-                    await update.message.reply_text("Баланс змінено.")
-                    admin_state[user_id] = None
-                    return
+            admin_state.pop(user_id, None)
+            return
 
-            # -------- ADMIN TASKS --------
-
-            if text == "📋 Завдання":
-                await handle_user_message(update, context)
-                return
-
-            # -------- ADMIN WITHDRAW --------
-
-            if text == "💸 Виводи":
-                handled = await handle_withdraw(update, context)
-                if handled:
-                    return
-
-            # -------- BROADCAST --------
-
-            if text == "📢 Розсилка":
-
-                admin_state[user_id] = "broadcast"
-                await update.message.reply_text("Введіть текст:")
-                return
-
-            if admin_state.get(user_id) == "broadcast":
-
-                users = get_users()
-
-                for r in users:
-
-                    try:
-                        await context.bot.send_message(
-                            r.get("telegram_id"),
-                            text
-                        )
-                    except:
-                        pass
-
-                await update.message.reply_text("Розсилка завершена.")
-                admin_state[user_id] = None
-                return
-
-            # -------- BAN USER --------
-
-            if text == "🔒 Бан користувача":
-                admin_state[user_id] = "await_ban_id"
-                await update.message.reply_text("Введіть ID користувача:")
-                return
-
-            if admin_state.get(user_id) == "await_ban_id":
-
-                target_id = text.strip()
-                users = get_users()
-
-                for row in users:
-
-                    if str(row.get("telegram_id")) == target_id:
-
-                        supabase.table("Users").update({
-                            "status": "Banned"
-                        }).eq("telegram_id", target_id).execute()
-
-                        await update.message.reply_text("Користувача заблоковано.")
-                        admin_state[user_id] = None
-                        return
-
-                await update.message.reply_text("Користувача не знайдено.")
-                return
-
-        # ================= USER =================
-
-        await handle_user_message(update, context)
-
-    except Exception:
-        logging.error(traceback.format_exc())
-        try:
-            await update.message.reply_text("Сталася помилка.")
-        except:
-            pass
-
+    return
+   
 
 # ==============================
 # BUILD APP
@@ -1924,6 +1818,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
