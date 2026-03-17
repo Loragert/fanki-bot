@@ -1093,7 +1093,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     # ---------------- CABINET ----------------
 
-    if text == "👤 Кабінет":
+    if text == "Мій кабінет":
         
         data = await get_user_profile_data(user_id)
         
@@ -1899,6 +1899,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
