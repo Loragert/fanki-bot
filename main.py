@@ -228,6 +228,55 @@ def get_user_stats(user_id):
 
 
     return reg_date, completed_tasks
+
+# ==============================
+# 👤 CABINET UI
+# ==============================
+
+def generate_profile_text(
+    fanki_balance,
+    tasks_total,
+    tasks_today,
+    earned_total,
+    earned_today,
+    reg_date,
+    status="Активний",
+    min_withdraw_fanki=1000
+):
+
+    usd_balance = round(fanki_balance / 1000, 2)
+
+    withdraw_available = fanki_balance >= min_withdraw_fanki
+
+    if withdraw_available:
+        withdraw_status = "🟢 Мінімальний вивід доступний"
+    else:
+        withdraw_status = "🔴 Мінімальний вивід недоступний"
+
+    progress = min(fanki_balance / min_withdraw_fanki, 1)
+    percent = int(progress * 100)
+
+    bars = int(progress * 10)
+    progress_bar = "🟩" * bars + "⬜" * (10 - bars)
+
+    text = (
+f"👤 Ваш кабінет\n\n"
+f"💰 Баланс: {fanki_balance} Fanki (≈ {usd_balance}$)\n\n"
+f"💸 Доступно до виводу: {usd_balance}$\n"
+f"{withdraw_status}\n\n"
+f"📈 Прогрес до виводу\n"
+f"{progress_bar} {percent}%\n\n"
+f"📊 Завдання\n"
+f"✅ Виконано всього: {tasks_total}\n"
+f"⚡ Виконано сьогодні: {tasks_today}\n\n"
+f"🏆 Заробіток\n"
+f"💰 Зароблено всього: {earned_total} Fanki\n"
+f"🔥 Зароблено сьогодні: {earned_today} Fanki\n\n"
+f"📅 Дата реєстрації: {reg_date}\n"
+f"🟢 Статус: {status}"
+    )
+
+    return text
     
 # ==============================
 # USER PROFILE DATA (CABINET)
@@ -1850,6 +1899,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
