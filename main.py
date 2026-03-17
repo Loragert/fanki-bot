@@ -1779,33 +1779,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 )
                 return
 
-            # -------- BAN USER --------
-
-            if text == "🔒 Бан користувача":
-                admin_state[user_id] = "await_ban_id"
-                await update.message.reply_text("Введіть ID користувача:")
-                return
-
-            if admin_state.get(user_id) == "await_ban_id":
-
-                target_id = text.strip()
-                users = get_users()
-
-                for row in users:
-
-                    if str(row.get("telegram_id")) == target_id:
-
-                        supabase.table("Users").update({
-                            "status": "Banned"
-                        }).eq("telegram_id", target_id).execute()
-
-                        await update.message.reply_text("Користувача заблоковано.")
-                        admin_state[user_id] = None
-                        return
-
-                await update.message.reply_text("Користувача не знайдено.")
-                return
-
+            
             # -------- CHANGE BALANCE --------
 
             if text == "💰 Змінити баланс":
@@ -1878,6 +1852,33 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 admin_state[user_id] = None
                 return
 
+            # -------- BAN USER --------
+
+            if text == "🔒 Бан користувача":
+                admin_state[user_id] = "await_ban_id"
+                await update.message.reply_text("Введіть ID користувача:")
+                return
+
+            if admin_state.get(user_id) == "await_ban_id":
+
+                target_id = text.strip()
+                users = get_users()
+
+                for row in users:
+
+                    if str(row.get("telegram_id")) == target_id:
+
+                        supabase.table("Users").update({
+                            "status": "Banned"
+                        }).eq("telegram_id", target_id).execute()
+
+                        await update.message.reply_text("Користувача заблоковано.")
+                        admin_state[user_id] = None
+                        return
+
+                await update.message.reply_text("Користувача не знайдено.")
+                return
+
         # ================= USER =================
 
         await handle_user_message(update, context)
@@ -1923,6 +1924,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
