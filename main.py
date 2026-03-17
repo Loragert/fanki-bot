@@ -712,7 +712,9 @@ async def send_next_task(update: Update, user_id: str):
         ),
         None
     )
-
+    
+    user_gender = (account_row.get("gender") or "all").lower()
+    
     if not account_row:
         await update.message.reply_text("Акаунт не підтверджений.")
         return
@@ -731,7 +733,12 @@ async def send_next_task(update: Update, user_id: str):
 
         if not template.get("active"):
             continue
+# --- GENDER FILTER TASK ---
+        task_gender = (template.get("gender_target") or "all").lower()
 
+        if task_gender != "all" and task_gender != user_gender:
+            continue
+            
         if str(template.get("social_network")).lower() != str(social_network).lower():
             continue
 
@@ -784,15 +791,28 @@ async def send_next_task(update: Update, user_id: str):
         comment_row_id = None
 
         if str(task_type).lower() == "comment":
-
+            
+# --- GENDER COMMENTS ---
+            
             available_comments = [
                 c for c in comments
                 if int(c.get("task_id")) == int(task_id)
                 and c.get("active") == True
+                and (str(c.get("gender") or "all").lower() in [user_gender, "all"])
             ]
 
             if not available_comments:
-                continue
+
+    # fallback на універсальні
+            available_comments = [
+                c for c in comments
+                if int(c.get("task_id")) == int(task_id)
+                and c.get("active") == True
+                and str(c.get("gender") or "all").lower() == "all"
+            ]
+
+    if not available_comments:
+        continue
 
             comment = available_comments[0]
             comment_text = comment.get("comment")
@@ -1771,6 +1791,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
