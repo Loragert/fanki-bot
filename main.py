@@ -497,6 +497,7 @@ async def show_main_menu(update: Update):
                 ["📢 Розсилка"],
                 ["📊 Статистика"],
                 ["⬅️ Назад"],
+                ["💰 Змінити баланс"},
                 ["🔒 Бан користувача"]
             ],
             resize_keyboard=True
@@ -513,12 +514,12 @@ async def show_main_menu(update: Update):
 
     markup = ReplyKeyboardMarkup(
         [
-            ["👤 Мій кабінет"]
-            ["➕ Реєстрація акаунту"],
-            ["ℹ️ Інформація про бот"],
-            ["📋 Завдання"],
-            ["🛠 Підтримка"],
-            ["💸 Вивід"]
+            ["👤Мій кабінет"]
+            ["➕Реєстрація акаунту"],
+            ["ℹ️Інформація про бот"],
+            ["📋Завдання"],
+            ["🛠Підтримка"],
+            ["💸Вивід"]
         ],
         resize_keyboard=True
     )
@@ -1116,7 +1117,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     # ---------------- CABINET ----------------
 
-    if text == "👤 Мій кабінет":
+    if text == "👤Мій кабінет":
         
         data = await get_user_profile_data(user_id)
         
@@ -1131,7 +1132,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     # ---------------- INFO ----------------
 
-    if text == "ℹ️ Інформація про бот":
+    if text == "ℹ️Інформація про бот":
 
         await update.message.reply_text(
             "🤖Про платформу🚀\n"
@@ -1146,7 +1147,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     # ---------------- SUPPORT ----------------
 
-    if text == "🛠 Підтримка":
+    if text == "🛠Підтримка":
 
         await update.message.reply_text(
             "📩 Підтримка:\nЯкщо у вас виникли питання або проблеми — зверніться до адміністратора."
@@ -1155,7 +1156,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     # ---------------- REGISTER ACCOUNT ----------------
 
-    if text == "➕ Реєстрація акаунту":
+    if text == "➕Реєстрація акаунту":
 
         markup = ReplyKeyboardMarkup(
             [["Instagram", "TikTok", "Facebook", "Google Maps"],
@@ -1285,7 +1286,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
 # ---------------- TASKS MENU ----------------
 
-    if text == "📋 Завдання":
+    if text == "📋Завдання":
 
         accounts = get_accounts()
 
@@ -1560,7 +1561,7 @@ async def handle_withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # ---------------- START WITHDRAW ----------------
 
-    if text == "💸 Вивід":
+    if text == "💸Вивід":
 
         balance, _, _ = get_user_data(user_id)
 
@@ -1922,6 +1923,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
