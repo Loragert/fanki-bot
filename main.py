@@ -514,7 +514,7 @@ async def show_main_menu(update: Update):
 
     markup = ReplyKeyboardMarkup(
         [
-            ["👤Мій кабінет"]
+            ["👤Мій кабінет"],
             ["➕Реєстрація акаунту"],
             ["ℹ️Інформація про бот"],
             ["📋Завдання"],
@@ -1923,6 +1923,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
