@@ -1557,68 +1557,68 @@ async def handle_withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # ---------------- CONFIRM ----------------
 
-if user_state.get(user_id) == "confirm_withdraw" and text == "Так":
+    if user_state.get(user_id) == "confirm_withdraw" and text == "Так":
 
-    amount = user_withdraw_amount.get(user_id)
+        amount = user_withdraw_amount.get(user_id)
 
-    if not amount:
-        await update.message.reply_text("Помилка.")
+        if not amount:
+            await update.message.reply_text("Помилка.")
+            user_state[user_id] = None
+            return True
+
+        now = datetime.utcnow().isoformat()
+
+    # 💰 РАХУЄМО $
+        usd = round(amount / 1000, 2)
+
+        deduct_user_balance(user_id, amount)
+
+        res = supabase.table("Withdrawals").insert({
+            "telegram_id": user_id,
+            "username": update.effective_user.username or "",
+            "binance_id": user_binance_id[user_id],
+            "amount": amount,
+            "amount_usd": usd,  # 👈 ОСЬ ЦЕ ГОЛОВНЕ
+            "status": "Pending",
+            "request_date": now
+        }).execute()
+
+        withdraw_id = res.data[0]["id"]
+
+        keyboard = InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton(
+                    "✅ Підтвердити",
+                    callback_data=f"withdraw_approve|{withdraw_id}"
+                ),
+                InlineKeyboardButton(
+                    "❌ Відхилити",
+                    callback_data=f"withdraw_reject|{withdraw_id}"
+                )
+            ]
+        ])
+
+        await context.bot.send_message(
+            ADMIN_ID[0],
+            f"💸 Новий запит на вивід\n\n"
+            f"👤 User: {user_id}\n"
+            f"💰 Сума: {amount} Fanki (~{usd}$)\n"
+            f"🏦 Binance ID: {user_binance_id[user_id]}",
+            reply_markup=keyboard
+        )
+
+        await update.message.reply_text(
+            f"✅ Заявка на вивід створена\n\n"
+            f"💰 Сума: {amount} Fanki\n"
+            f"💵 ≈ {usd}$\n"
+            f"🏦 Binance ID: {user_binance_id[user_id]}\n\n"
+            f"Очікуйте підтвердження адміністратора."
+        )
+
         user_state[user_id] = None
         return True
 
-    now = datetime.utcnow().isoformat()
-
-    # 💰 РАХУЄМО $
-    usd = round(amount / 1000, 2)
-
-    deduct_user_balance(user_id, amount)
-
-    res = supabase.table("Withdrawals").insert({
-        "telegram_id": user_id,
-        "username": update.effective_user.username or "",
-        "binance_id": user_binance_id[user_id],
-        "amount": amount,
-        "amount_usd": usd,  # 👈 ОСЬ ЦЕ ГОЛОВНЕ
-        "status": "Pending",
-        "request_date": now
-    }).execute()
-
-    withdraw_id = res.data[0]["id"]
-
-    keyboard = InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton(
-                "✅ Підтвердити",
-                callback_data=f"withdraw_approve|{withdraw_id}"
-            ),
-            InlineKeyboardButton(
-                "❌ Відхилити",
-                callback_data=f"withdraw_reject|{withdraw_id}"
-            )
-        ]
-    ])
-
-    await context.bot.send_message(
-        ADMIN_ID[0],
-        f"💸 Новий запит на вивід\n\n"
-        f"👤 User: {user_id}\n"
-        f"💰 Сума: {amount} Fanki (~{usd}$)\n"
-        f"🏦 Binance ID: {user_binance_id[user_id]}",
-        reply_markup=keyboard
-    )
-
-    await update.message.reply_text(
-        f"✅ Заявка на вивід створена\n\n"
-        f"💰 Сума: {amount} Fanki\n"
-        f"💵 ≈ {usd}$\n"
-        f"🏦 Binance ID: {user_binance_id[user_id]}\n\n"
-        f"Очікуйте підтвердження адміністратора."
-    )
-
-    user_state[user_id] = None
-    return True
-
-return False
+    return False
 # ==============================
 # MESSAGE ROUTER
 # ==============================
