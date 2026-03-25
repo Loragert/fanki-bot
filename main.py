@@ -405,8 +405,12 @@ async def show_main_menu(update: Update):
         )
         return
 
-    users = get_users()
-    active_users = len(users)
+    res = supabase.table("Users")\
+        .select("id", count="exact")\
+        .eq("status", "Active")\
+        .execute()
+
+    active_users = res.count if res.count else 0
 
     markup = ReplyKeyboardMarkup(
         [
