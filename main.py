@@ -781,6 +781,45 @@ async def send_next_task(update: Update, user_id: str):
             task_id = int(template.get("task_id"))
         except:
             continue
+        # =============================
+        # LIMITS (max_total / max_per_day)
+        # =============================
+
+        max_total = template.get("max_total")
+        max_per_day = template.get("max_per_day")
+
+        # --- TOTAL LIMIT ---
+        if max_total:
+            res_total = supabase.table("Tasks")\
+                .select("id", count="exact")\
+                .eq("task_id", task_id)\
+                .eq("status", "Approved")\
+                .execute()
+
+            total_done = res_total.count or 0
+
+            if total_done >= max_total:
+                continue
+
+
+        # --- DAILY LIMIT ---
+        if max_per_day:
+            from datetime import datetime
+
+            today = datetime.utcnow().date().isoformat()
+
+            res_day = supabase.table("Tasks")\
+                .select("id", count="exact")\
+                .eq("task_id", task_id)\
+                .eq("status", "Approved")\
+                .gte("assign_date", today)\
+                .execute()
+
+            day_done = res_day.count or 0
+
+            if day_done >= max_per_day:
+                continue
+
 
         if task_id in done_task_ids:
             continue
