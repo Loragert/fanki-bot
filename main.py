@@ -755,6 +755,9 @@ async def send_next_task(update: Update, user_id: str):
     # ✅ ГЕНДЕР КОРИСТУВАЧА
     user_gender = str(account_row.get("gender") or "all").strip().lower()
 
+    # ✅ РЕГІОН КОРИСТУВАЧА
+    user_region = str(account_row.get("region") or "all").strip().lower()
+
     # already used task_ids
     done_task_ids = set()
 
@@ -772,9 +775,14 @@ async def send_next_task(update: Update, user_id: str):
         if str(template.get("social_network")).lower() != str(social_network).lower():
             continue
 
-        # ✅ ФІЛЬТР ПО ГЕНДЕРУ ЗАВДАННЯ
+        # ✅ ФІЛЬТР ПО ГЕНДЕРУ
         task_gender = str(template.get("gender_target") or "all").strip().lower()
         if task_gender != "all" and task_gender != user_gender:
+            continue
+
+        # ✅ ФІЛЬТР ПО РЕГІОНУ
+        task_region = str(template.get("region_target") or "all").strip().lower()
+        if task_region != "all" and task_region != user_region:
             continue
 
         try:
@@ -819,7 +827,6 @@ async def send_next_task(update: Update, user_id: str):
 
             if day_done >= max_per_day:
                 continue
-
 
         if task_id in done_task_ids:
             continue
@@ -867,22 +874,34 @@ async def send_next_task(update: Update, user_id: str):
 
         if str(task_type).lower() == "comment":
 
-            # ✅ 1. СПОЧАТКУ ШУКАЄМО ПО ГЕНДЕРУ
+    # ✅ 1. СПОЧАТКУ: гендер + регіон
             available_comments = [
                 c for c in comments
                 if int(c.get("task_id")) == int(task_id)
                 and c.get("active") == True
                 and str(c.get("gender") or "all").strip().lower() == user_gender
+                and str(c.get("region") or "all").strip().lower() == user_region
             ]
 
-            # ✅ 2. FALLBACK НА ALL
+    # ✅ 2. FALLBACK: гендер + all регіон
+            if not available_comments:
+                available_comments = [
+                    c for c in comments
+                    if int(c.get("task_id")) == int(task_id)
+                    and c.get("active") == True
+                    and str(c.get("gender") or "all").strip().lower() == user_gender
+                    and str(c.get("region") or "all").strip().lower() == "all"
+            ]
+
+    # ✅ 3. FALLBACK: all гендер + all регіон
             if not available_comments:
                 available_comments = [
                     c for c in comments
                     if int(c.get("task_id")) == int(task_id)
                     and c.get("active") == True
                     and str(c.get("gender") or "all").strip().lower() == "all"
-                ]
+                    and str(c.get("region") or "all").strip().lower() == "all"
+            ]
 
             if not available_comments:
                 continue
