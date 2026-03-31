@@ -842,7 +842,7 @@ async def send_next_task(update: Update, user_id: str):
                 .select("account")\
                 .neq("comment_text", "")\
                 .order("assign_date", desc=True)\
-                .limit(180)\
+                .limit(10)\
                 .execute()
 
             recent_accounts = [r["account"] for r in recent_comments.data]
