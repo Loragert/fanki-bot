@@ -862,7 +862,7 @@ async def send_next_task(update: Update, user_id: str):
                 last_time = datetime.fromisoformat(last_comment.data[0]["assign_date"])
                 now_time = datetime.now(last_time.tzinfo)
 
-                if (now_time - last_time) < timedelta(minutes=40):
+                if (now_time - last_time) < timedelta(minutes=1):
                     continue
 
         link = (template.get("link") or "").strip()
