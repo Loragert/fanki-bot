@@ -958,21 +958,19 @@ async def send_next_task(update: Update, user_id: str):
             await update.message.reply_text(comment_text)
             
         elif str(task_type).lower() == "video_view":
-
-             msg = (
-                 "📌 Завдання\n\n"
-                 "⚠️ Потрібно зробити ДВА скріншоти!\n\n"
-                 "📸 1 — початок перегляду (щоб було видно час)\n"
-                 "📸 2 — кінець перегляду\n\n"
-                 "⏱ Дотримуйтесь часу, вказаного в завданні!\n\n"
-                 f"🔗 Посилання:\n{link}\n\n"
-                 f"🎯 Дія:\n{action_text}\n\n"
-                 f"💰 Нагорода:\n{reward} Fanki\n\n"
+            msg = (
+                "📌 Завдання\n\n"
+                "⚠️ Потрібно зробити ДВА скріншоти!\n\n"
+                "📸 1 — початок перегляду (щоб було видно час)\n"
+                "📸 2 — кінець перегляду\n\n"
+                "⏱ Дотримуйтесь часу, вказаного в завданні!\n\n"
+                f"🔗 Посилання:\n{link}\n\n"
+                f"🎯 Дія:\n{action_text}\n\n"
+                f"💰 Нагорода:\n{reward} Fanki\n\n"
             )
             await update.message.reply_text(msg)
         
         else:
-
             msg = (
                 "📌 Завдання\n\n"
                 "⚠️ Обов'язково зробіть скрін виконаної дії!\n\n"
