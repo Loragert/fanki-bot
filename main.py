@@ -1379,7 +1379,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             await update.message.reply_text("🤷‍♂️Немає активного завдання.")
             return
 
-        task = current_task.get(user_id)
+    task = current_task.get(user_id)
 
     if task and task["type"] == "video_view":
         user_state[user_id] = "await_screenshot_1"
