@@ -1398,13 +1398,34 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 
         file_id = update.message.photo[-1].file_id
 
-        current_task[user_id]["screen1"] = file_id
+        current_task[user_id]["screen1"] = file_id  # ← тут ще виправила typo
 
         user_state[user_id] = "await_screenshot_2"
 
         await update.message.reply_text("📸 Надішліть другий скрін (кінець перегляду)")
         return
-    if state == "await_screenshot":
+
+
+    elif state == "await_screenshot_2":
+
+        if not update.message.photo:
+            await update.message.reply_text("📸 Надішліть другий скрін.")
+            return
+
+        file_id = update.message.photo[-1].file_id
+
+        current_task[user_id]["screen2"] = file_id
+
+    # 🔥 тут завершуємо процес
+        user_state[user_id] = "idle"
+
+        await update.message.reply_text("✅ Скріншоти отримано, відправлено на перевірку")
+
+    # 👉 тут потім вставимо відправку адміну / автоперевірку
+
+        return
+
+    elif state == "await_screenshot":
 
         if not update.message.photo:
             await update.message.reply_text("📸Будь ласка, надішліть скріншот.")
