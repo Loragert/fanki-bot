@@ -35,6 +35,7 @@ from supabase import create_client
 TASK_TEXT = {
     "like": "👍 Лайкнути пост",
     "follow": "➕ Підписатися",
+    "video_view": "📺 Переглянути відео",
     "comment": "💬 Залишити коментар"
 }
 
