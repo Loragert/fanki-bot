@@ -1385,9 +1385,9 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         user_state[user_id] = "await_screenshot_1"
         await update.message.reply_text("📸 Надішліть перший скрін (початок перегляду)")
             
-         else:
-            user_state[user_id] = "await_screenshot"
-            await update.message.reply_text("📸 Надішліть скрін.")
+    else:
+        user_state[user_id] = "await_screenshot"
+        await update.message.reply_text("📸 Надішліть скрін.")
 
     # ---------------- SCREENSHOT ----------------
     if state == "await_screenshot_1":
