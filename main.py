@@ -956,21 +956,9 @@ async def send_next_task(update: Update, user_id: str):
             )
             await update.message.reply_text(msg)
             await update.message.reply_text(comment_text)
-            
-        elif str(task_type).lower() == "video_view":
-            msg = (
-                "📌 Завдання\n\n"
-                "⚠️ Потрібно зробити ДВА скріншоти!\n\n"
-                "📸 1 — початок перегляду (щоб було видно час)\n"
-                "📸 2 — кінець перегляду\n\n"
-                "⏱ Дотримуйтесь часу, вказаного в завданні!\n\n"
-                f"🔗 Посилання:\n{link}\n\n"
-                f"🎯 Дія:\n{action_text}\n\n"
-                f"💰 Нагорода:\n{reward} Fanki\n\n"
-            )
-            await update.message.reply_text(msg)
-        
+
         else:
+
             msg = (
                 "📌 Завдання\n\n"
                 "⚠️ Обов'язково зробіть скрін виконаної дії!\n\n"
@@ -1379,53 +1367,14 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             await update.message.reply_text("🤷‍♂️Немає активного завдання.")
             return
 
-    task = current_task.get(user_id)
-
-    if task and task["type"] == "video_view":
-        user_state[user_id] = "await_screenshot_1"
-        await update.message.reply_text("📸 Надішліть перший скрін (початок перегляду)")
-        return    
-    else:
         user_state[user_id] = "await_screenshot"
-        await update.message.reply_text("📸 Надішліть скрін.")
+
+        await update.message.reply_text("📸Надішліть скрін.")
         return
+
     # ---------------- SCREENSHOT ----------------
-    if state == "await_screenshot_1":
 
-        if not update.message.photo:
-            await update.message.reply_text("📸 Надішліть скріншот.")
-            return
-
-        file_id = update.message.photo[-1].file_id
-
-        current_task[user_id]["screen1"] = file_id  # ← тут ще виправила typo
-
-        user_state[user_id] = "await_screenshot_2"
-
-        await update.message.reply_text("📸 Надішліть другий скрін (кінець перегляду)")
-        return
-
-
-    elif state == "await_screenshot_2":
-
-        if not update.message.photo:
-            await update.message.reply_text("📸 Надішліть другий скрін.")
-            return
-
-        file_id = update.message.photo[-1].file_id
-
-        current_task[user_id]["screen2"] = file_id
-
-    # 🔥 тут завершуємо процес
-        user_state[user_id] = "idle"
-
-        await update.message.reply_text("✅ Скріншоти отримано, відправлено на перевірку")
-
-    # 👉 тут потім вставимо відправку адміну / автоперевірку
-
-        return
-
-    elif state == "await_screenshot":
+    if state == "await_screenshot":
 
         if not update.message.photo:
             await update.message.reply_text("📸Будь ласка, надішліть скріншот.")
@@ -1897,6 +1846,7 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
 
 
