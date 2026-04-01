@@ -956,7 +956,21 @@ async def send_next_task(update: Update, user_id: str):
             )
             await update.message.reply_text(msg)
             await update.message.reply_text(comment_text)
+            
+        elif str(task_type).lower() == "video_view":
 
+             msg = (
+                 "📌 Завдання\n\n"
+                 "⚠️ Потрібно зробити ДВА скріншоти!\n\n"
+                 "📸 1 — початок перегляду (щоб було видно час)\n"
+                 "📸 2 — кінець перегляду\n\n"
+                 "⏱ Дотримуйтесь часу, вказаного в завданні!\n\n"
+                 f"🔗 Посилання:\n{link}\n\n"
+                 f"🎯 Дія:\n{action_text}\n\n"
+                 f"💰 Нагорода:\n{reward} Fanki\n\n"
+            )
+            await update.message.reply_text(msg)
+        
         else:
 
             msg = (
@@ -1367,13 +1381,30 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             await update.message.reply_text("🤷‍♂️Немає активного завдання.")
             return
 
-        user_state[user_id] = "await_screenshot"
+        task = current_task.get(user_id)
 
-        await update.message.reply_text("📸Надішліть скрін.")
-        return
+        if task and task["type"] == "video_view":
+            user_state[user_id] = "await_screenshot_1"
+            await update.message.reply_text("📸 Надішліть перший скрін (початок перегляду)")
+         else:
+            user_state[user_id] = "await_screenshot"
+            await update.message.reply_text("📸 Надішліть скрін.")
 
     # ---------------- SCREENSHOT ----------------
+    if state == "await_screenshot_1":
 
+        if not update.message.photo:
+            await update.message.reply_text("📸 Надішліть скріншот.")
+            return
+
+        file_id = update.message.photo[-1].file_id
+
+        current_task[user_id]["screen1"] = file_id
+
+        user_state[user_id] = "await_screenshot_2"
+
+        await update.message.reply_text("📸 Надішліть другий скрін (кінець перегляду)")
+        return
     if state == "await_screenshot":
 
         if not update.message.photo:
