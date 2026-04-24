@@ -729,6 +729,34 @@ async def send_next_task(update: Update, user_id: str):
 
     social_network = user_selected_social[user_id]
     account_name = user_selected_account.get(user_id)
+    
+    # --- PRELOAD TASK STATS ---
+    all_tasks = supabase.table("Tasks")\
+        .select("task_id, status, assign_date")\
+        .execute().data
+
+    total_done_map = {}
+    day_done_map = {}
+
+    from datetime import datetime
+    today = datetime.utcnow().date()
+
+    for t in all_tasks:
+        if t["status"] != "Approved":
+            continue
+
+        tid = int(t["task_id"])
+
+        total_done_map[tid] = total_done_map.get(tid, 0) + 1
+
+        if t.get("assign_date"):
+            try:
+                d = datetime.fromisoformat(t["assign_date"]).date()
+                if d == today:
+                    day_done_map[tid] = day_done_map.get(tid, 0) + 1
+            except:
+                pass
+
 
     tasks = (
         supabase
@@ -790,45 +818,22 @@ async def send_next_task(update: Update, user_id: str):
             task_id = int(template.get("task_id"))
         except:
             continue
+            
         # =============================
-        # LIMITS (max_total / max_per_day)
+        # LIMITS (швидка версія)
         # =============================
 
         max_total = template.get("max_total")
         max_per_day = template.get("max_per_day")
 
-        # --- TOTAL LIMIT ---
         if max_total:
-            res_total = supabase.table("Tasks")\
-                .select("id", count="exact")\
-                .eq("task_id", task_id)\
-                .eq("status", "Approved")\
-                .execute()
-
-            total_done = res_total.count or 0
-
-            if total_done >= max_total:
+            if total_done_map.get(task_id, 0) >= max_total:
                 continue
 
-
-        # --- DAILY LIMIT ---
         if max_per_day:
-            from datetime import datetime
-
-            today = datetime.utcnow().date().isoformat()
-
-            res_day = supabase.table("Tasks")\
-                .select("id", count="exact")\
-                .eq("task_id", task_id)\
-                .eq("status", "Approved")\
-                .gte("assign_date", today)\
-                .execute()
-
-            day_done = res_day.count or 0
-
-            if day_done >= max_per_day:
+            if day_done_map.get(task_id, 0) >= max_per_day:
                 continue
-
+                
         if task_id in done_task_ids:
             continue
 
