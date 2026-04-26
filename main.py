@@ -1391,26 +1391,48 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     
 # ---------------- SCREENSHOT ----------------    
 
-async def handle_single_screenshot(update, context):
+async def handle_single_screenshot(update, context, file_id=None, file_id_2=None):
 
     user_id = update.effective_user.id
     now = datetime.utcnow().isoformat()
 
-    if not update.message.photo:
-        await update.message.reply_text("📸Будь ласка, надішліть скріншот.")
-        return
+    # ======================
+    # ОТРИМАННЯ СКРІНУ
+    # ======================
+    if not file_id:
+        if not update.message.photo:
+            await update.message.reply_text("📸Будь ласка, надішліть скріншот.")
+            return
+        file_id = update.message.photo[-1].file_id
 
-    file_id = update.message.photo[-1].file_id
+    # ======================
+    # АНТИДУБЛЬ (1 СКРІН)
+    # ======================
+    existing_1 = supabase.table("Tasks").select("id").eq("screenfile_id", file_id).execute()
 
-    existing = supabase.table("Tasks").select("id").eq("screenfile_id", file_id).execute()
-
-    if existing.data:
+    if existing_1.data:
         await update.message.reply_text(
             "⚠️ Цей скріншот вже був використаний раніше.\n\n"
-            "📸 Будь ласка, зробіть новий скріншот виконання."
+            "📸 Зробіть новий скріншот."
         )
         return
 
+    # ======================
+    # АНТИДУБЛЬ (2 СКРІН)
+    # ======================
+    if file_id_2:
+        existing_2 = supabase.table("Tasks").select("id").eq("screenfile_id_2", file_id_2).execute()
+
+        if existing_2.data:
+            await update.message.reply_text(
+                "⚠️ Другий скріншот вже використовувався раніше.\n\n"
+                "📸 Зробіть новий скріншот."
+            )
+            return
+
+    # ======================
+    # TASK DATA
+    # ======================
     task = current_task.get(user_id)
     account_name = user_selected_account.get(user_id)
 
@@ -1421,6 +1443,9 @@ async def handle_single_screenshot(update, context):
 
     task_id = task["task_id"]
 
+    # ======================
+    # INSERT В БАЗУ
+    # ======================
     res = supabase.table("Tasks").insert({
         "telegram_id": user_id,
         "social_network": task["social"],
@@ -1430,18 +1455,23 @@ async def handle_single_screenshot(update, context):
         "status": "Pending",
         "assign_date": now,
         "screenfile_id": file_id,
+        "screenfile_id_2": file_id_2,
         "comment_text": task.get("comment", "")
     }).execute()
 
     task_record_id = res.data[0]["id"]
 
-    # коментар (як було)
+    # ======================
+    # COMMENT POOL
+    # ======================
     if task.get("comment_row_id"):
         supabase.table("Comment_Pool").update({
             "active": False
         }).eq("id", task["comment_row_id"]).execute()
 
-    # кнопки модерації
+    # ======================
+    # КНОПКИ
+    # ======================
     keyboard = InlineKeyboardMarkup([
         [
             InlineKeyboardButton("✅ Підтвердити", callback_data=f"task_approve|{task_record_id}"),
@@ -1449,13 +1479,18 @@ async def handle_single_screenshot(update, context):
         ]
     ])
 
-    # перевірка авто
+    # ======================
+    # AUTO CHECK
+    # ======================
     user_row = supabase.table("Users").select("is_top_auto").eq("telegram_id", user_id).execute()
 
     is_auto = False
     if user_row.data:
         is_auto = user_row.data[0]["is_top_auto"]
 
+    # ======================
+    # AUTO
+    # ======================
     if is_auto:
 
         await asyncio.sleep(0.5)
@@ -1477,6 +1512,7 @@ async def handle_single_screenshot(update, context):
             text=f"✅ Завдання підтверджено!\n💰 Нараховано {reward} Fanki."
         )
 
+        # перший скрін
         await context.bot.send_photo(
             TASK_AUTO_ID,
             file_id,
@@ -1489,6 +1525,13 @@ async def handle_single_screenshot(update, context):
             f"🔗 Посилання: {task['link']}"
         )
 
+        # другий скрін
+        if file_id_2:
+            await context.bot.send_photo(TASK_AUTO_ID, file_id_2)
+
+    # ======================
+    # MANUAL
+    # ======================
     else:
 
         await context.bot.send_photo(
@@ -1505,8 +1548,15 @@ async def handle_single_screenshot(update, context):
             reply_markup=keyboard
         )
 
+        # другий скрін
+        if file_id_2:
+            await context.bot.send_photo(TASK_MODERATOR_ID, file_id_2)
+
         await update.message.reply_text("Скрін відправлено на перевірку.")
 
+    # ======================
+    # CLEANUP
+    # ======================
     current_task.pop(user_id, None)
 
     if task["social"] == "Google Maps":
