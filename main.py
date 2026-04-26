@@ -38,7 +38,14 @@ TASK_TEXT = {
     "video_view": "📺 Переглянути відео",
     "comment": "💬 Залишити коментар"
 }
-
+SOCIALS = {
+    "instagram": "Instagram",
+    "tiktok": "TikTok",
+    "facebook": "Facebook",
+    "youtube": "YouTube",
+    "telegram": "Telegram",
+    "google": "Google Maps"
+}
 
 # ==============================
 # CONFIG
@@ -1123,9 +1130,11 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     if text == "➕Реєстрація акаунту":
 
+        buttons = [[name] for name in SOCIALS.values()]
+        buttons.append(["⬅️ Назад"])
+
         markup = ReplyKeyboardMarkup(
-            [["Instagram", "TikTok", "Facebook", "Google Maps"],
-             ["⬅️ Назад"]],
+            buttons,
             resize_keyboard=True
         )
 
@@ -1158,7 +1167,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     if state == "await_social":
 
-        allowed_socials = ["Instagram", "TikTok", "Facebook", "Google Maps"]
+        allowed_socials = list(SOCIALS.values())
 
         if text not in allowed_socials:
             await update.message.reply_text("🌍Оберіть соцмережу кнопкою")
@@ -1851,77 +1860,6 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
