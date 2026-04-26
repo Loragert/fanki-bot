@@ -1386,132 +1386,136 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.message.reply_text("📸Надішліть скрін.")
         return
 
-    # ---------------- SCREENSHOT ----------------
-
     if state == "await_screenshot":
+        return await handle_single_screenshot(update, context)
+    
+# ---------------- SCREENSHOT ----------------    
 
-        if not update.message.photo:
-            await update.message.reply_text("📸Будь ласка, надішліть скріншот.")
-            return
+async def handle_single_screenshot(update, context):
 
-        file_id = update.message.photo[-1].file_id
-        existing = supabase.table("Tasks").select("id").eq("screenfile_id", file_id).execute()
+    user_id = update.effective_user.id
+    now = datetime.utcnow().isoformat()
 
-        if existing.data:
-            await update.message.reply_text(
-                "⚠️ Цей скріншот вже був використаний раніше.\n\n"
-                "📸 Будь ласка, зробіть скріншот виконання цього завдання і надішліть його."
-            )
-            return
-            
-        task = current_task.get(user_id)
-        account_name = user_selected_account.get(user_id)
-        task_id = task["task_id"]
+    if not update.message.photo:
+        await update.message.reply_text("📸Будь ласка, надішліть скріншот.")
+        return
 
-        if not task:
-            await update.message.reply_text("⚠️Помилка. Спробуйте ще раз.")
-            user_state[user_id] = "working"
-            return
+    file_id = update.message.photo[-1].file_id
 
-        res = supabase.table("Tasks").insert({
-            "telegram_id": user_id,
-            "social_network": task["social"],
-            "account": account_name,
-            "task_id": task_id,
-            "link": task["link"],
-            "status": "Pending",
-            "assign_date": now,
-            "screenfile_id": file_id,
-            "comment_text": task.get("comment", "")
-        }).execute()
+    existing = supabase.table("Tasks").select("id").eq("screenfile_id", file_id).execute()
 
-        task_record_id = res.data[0]["id"]
+    if existing.data:
+        await update.message.reply_text(
+            "⚠️ Цей скріншот вже був використаний раніше.\n\n"
+            "📸 Будь ласка, зробіть новий скріншот виконання."
+        )
+        return
 
-        if task.get("comment_row_id"):
+    task = current_task.get(user_id)
+    account_name = user_selected_account.get(user_id)
 
-            supabase.table("Comment_Pool").update({
-                "active": False
-            }).eq("id", task["comment_row_id"]).execute()
+    if not task:
+        await update.message.reply_text("⚠️Помилка. Спробуйте ще раз.")
+        user_state[user_id] = "working"
+        return
 
-        keyboard = InlineKeyboardMarkup([
-            [
-                InlineKeyboardButton(
-                    "✅ Підтвердити",
-                    callback_data=f"task_approve|{task_record_id}"
-                ),
-                InlineKeyboardButton(
-                    "❌ Відхилити",
-                    callback_data=f"task_reject|{task_record_id}"
-                )
-            ]
-        ])
+    task_id = task["task_id"]
 
-        user_row = supabase.table("Users").select("is_top_auto").eq("telegram_id", user_id).execute()
+    res = supabase.table("Tasks").insert({
+        "telegram_id": user_id,
+        "social_network": task["social"],
+        "account": account_name,
+        "task_id": task_id,
+        "link": task["link"],
+        "status": "Pending",
+        "assign_date": now,
+        "screenfile_id": file_id,
+        "comment_text": task.get("comment", "")
+    }).execute()
 
-        is_auto = False
-        if user_row.data:
-            is_auto = user_row.data[0]["is_top_auto"]
+    task_record_id = res.data[0]["id"]
 
-        if is_auto:
-            await asyncio.sleep(0.5)
+    # коментар (як було)
+    if task.get("comment_row_id"):
+        supabase.table("Comment_Pool").update({
+            "active": False
+        }).eq("id", task["comment_row_id"]).execute()
 
-            supabase.table("Tasks").update({
-                "status": "Approved",
-                "paid": "Paid",
-                "approve_date": now
-            }).eq("id", task_record_id).execute()
+    # кнопки модерації
+    keyboard = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("✅ Підтвердити", callback_data=f"task_approve|{task_record_id}"),
+            InlineKeyboardButton("❌ Відхилити", callback_data=f"task_reject|{task_record_id}")
+        ]
+    ])
 
-            template = supabase.table("TaskTemplates").select("*").eq("task_id", task_id).execute().data
-            reward = int(template[0]["reward"]) if template else 0
+    # перевірка авто
+    user_row = supabase.table("Users").select("is_top_auto").eq("telegram_id", user_id).execute()
 
-            update_user_balance(user_id, reward)
-            add_to_user_total(user_id, reward)
-            await context.bot.send_message(
-                chat_id=int(user_id),
-                text=f"✅ Завдання підтверджено!\n💰 Нараховано {reward} Fanki."
-            )
+    is_auto = False
+    if user_row.data:
+        is_auto = user_row.data[0]["is_top_auto"]
 
-            await context.bot.send_photo(
-                TASK_AUTO_ID,
-                file_id,
-                caption="🤖 AUTO APPROVE\n\n" + 
-                f"👤 User ID: {user_id}\n"
-                f"📱 Соцмережа: {task['social']}\n"
-                f"👤 Акаунт: {account_name}\n"
-                f"🧩 Тип: {task['type']}\n"
-                f"📄 Завдання: {task['task_id']}\n"
-                f"🔗 Посилання: {task['link']}"
-            )
+    if is_auto:
 
-        else:
+        await asyncio.sleep(0.5)
 
-            await context.bot.send_photo(
-                TASK_MODERATOR_ID,
-                file_id,
-                caption=(
+        supabase.table("Tasks").update({
+            "status": "Approved",
+            "paid": "Paid",
+            "approve_date": now
+        }).eq("id", task_record_id).execute()
+
+        template = supabase.table("TaskTemplates").select("*").eq("task_id", task_id).execute().data
+        reward = int(template[0]["reward"]) if template else 0
+
+        update_user_balance(user_id, reward)
+        add_to_user_total(user_id, reward)
+
+        await context.bot.send_message(
+            chat_id=int(user_id),
+            text=f"✅ Завдання підтверджено!\n💰 Нараховано {reward} Fanki."
+        )
+
+        await context.bot.send_photo(
+            TASK_AUTO_ID,
+            file_id,
+            caption="🤖 AUTO APPROVE\n\n" +
+            f"👤 User ID: {user_id}\n"
+            f"📱 Соцмережа: {task['social']}\n"
+            f"👤 Акаунт: {account_name}\n"
+            f"🧩 Тип: {task['type']}\n"
+            f"📄 Завдання: {task['task_id']}\n"
+            f"🔗 Посилання: {task['link']}"
+        )
+
+    else:
+
+        await context.bot.send_photo(
+            TASK_MODERATOR_ID,
+            file_id,
+            caption=(
                 f"👤 User ID: {user_id}\n"
                 f"📱 Соцмережа: {task['social']}\n"
                 f"👤 Акаунт: {account_name}\n"
                 f"⚙️ Тип: {task['type']}\n"
                 f"📋 Завдання: {task['task_id']}\n"
                 f"🔗 Посилання: {task['link']}"
-                ),
-                reply_markup=keyboard
-            )
+            ),
+            reply_markup=keyboard
+        )
 
-            await update.message.reply_text("Скрін відправлено на перевірку.")
+        await update.message.reply_text("Скрін відправлено на перевірку.")
 
-        current_task.pop(user_id, None)
+    current_task.pop(user_id, None)
 
-        if task["social"] == "Google Maps":
-            user_state[user_id] = None
-            await show_main_menu(update)
-            return
-
+    if task["social"] == "Google Maps":
         user_state[user_id] = None
-        await send_next_task(update, user_id)
+        await show_main_menu(update)
         return
 
+    user_state[user_id] = None
+    await send_next_task(update, user_id)
 # ==============================
 # WITHDRAW (USER SIDE)
 # ==============================
@@ -1860,80 +1864,3 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
