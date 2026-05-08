@@ -440,6 +440,8 @@ async def show_main_menu(update: Update):
     "🛠 Звернутися до підтримки\n"
     "💸 Подати заявку на вивід коштів\n"
     "📋 Отримати завдання\n\n"
+    "📢 Новини, оновлення та інструкції:https://t.me/+XnLg96cCpKpkMjA8 \n"
+    "💬 Спільнота користувачів\n"
     "⚠️ Для отримання завдань необхідно спочатку зареєструвати акаунт.\n\n"
     f"👥 Активних користувачів: {active_users}\n\n"
     "👇 Оберіть потрібний пункт нижче"
@@ -465,7 +467,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_state[user_id] = "await_accept"
 
     text = f"""
-👋Привіт, {username}! Раді вітати вас у боті з онлайн-завданнями.
+👋Привіт, {username}! Раді вітати вас у FankiBoti.
 
 📌 Правила роботи:
 
@@ -475,6 +477,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 4️⃣ Не надавайте чужі акаунти  
 
 ⚠️ За порушення правил або спробу обману доступ буде закрито.
+Натискаючи кнопку «Приймаю», ви погоджуєтесь із правилами платформи.
 """
 
     await update.message.reply_text(
@@ -1113,7 +1116,21 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             "• TikTok\n"
             "• Instagram\n"
             "• Facebook\n\n"
-            "💼 Ви можете працювати з декількох власних акаунтів кожної соціальної мережі."
+            "• YouTube\n\n"
+            "• Telegram\n\n"
+            "• Google Maps\n\n"
+            "💼 Ви можете працювати з декількох власних акаунтів кожної соціальної мережі.\n\n"
+            "📢 У нашому офіційному каналі публікуються:\n\n"
+            "• новини\n\n"
+            "• оновлення\n\n"
+            "• інструкції\n\n"
+            "• корисна інформація по роботі\n\n"
+
+           "👇 Канал:https://t.me/+XnLg96cCpKpkMjA8\n\n"
+
+
+           "💬 Група обговорення та допомоги:\n\n"
+           "https://t.me/+5_xjkinfaaw3OGQ0"
         )
         return
 
@@ -1122,7 +1139,9 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     if text == "🛠Підтримка":
 
         await update.message.reply_text(
-            "📩 Підтримка:\nЯкщо у вас виникли питання або проблеми — зверніться до адміністратора."
+            "📩 Підтримка:\nЯкщо у вас виникли питання або проблеми під час роботи — зверніться до адміністратора.
+
+💬 Також ви можете поставити питання у спільноті користувачів, де учасники та адміністрація допомагають вирішувати проблеми та діляться досвідом."
         )
         return
 
