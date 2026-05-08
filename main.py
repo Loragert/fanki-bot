@@ -467,7 +467,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_state[user_id] = "await_accept"
 
     text = f"""
-👋Привіт, {username}! Раді вітати вас у FankiBoti.
+👋Привіт, {username}! 
+ Раді вітати вас у FankiBoti.
+ ⚠️ Для роботи з ботом необхідно встановити username у Telegram.
+
+ Без username:
+ • недоступний вивід коштів
+
+📌 Встановіть username в налаштуваннях Telegram та перезапустіть бота.
 
 📌 Правила роботи:
 
