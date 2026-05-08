@@ -1127,7 +1127,8 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             "• інструкції\n"
             "• корисна інформація по роботі\n"
 
-           "👇 Канал:https://t.me/+XnLg96cCpKpkMjA8\n\n"
+           "👇 Канал:\n"
+           "https://t.me/+XnLg96cCpKpkMjA8\n\n"
 
 
            "💬 Група обговорення та допомоги:\n"
