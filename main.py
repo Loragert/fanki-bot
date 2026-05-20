@@ -1,6 +1,6 @@
 # ==============================
 # FANki BOT — SUPABASE VERSION
-# =============================
+# ==============================
 
 import re
 import logging
@@ -14,7 +14,8 @@ from telegram import (
     ReplyKeyboardMarkup,
     ReplyKeyboardRemove,
     InlineKeyboardMarkup,
-    InlineKeyboardButton
+    InlineKeyboardButton,
+    InputMediaPhoto
 )
 
 from telegram.ext import (
@@ -69,8 +70,14 @@ ADMIN_ID = [6699691752]
 TASK_MODERATOR_ID = 877030342
 TASK_AUTO_ID = 7489327594
 
+
 def is_admin(user_id):
     return user_id in ADMIN_ID
+
+
+def can_use_callback(user_id):
+    return user_id in set(ADMIN_ID + [TASK_MODERATOR_ID, TASK_AUTO_ID])
+
 
 # ==============================
 # ERROR NOTIFYy
@@ -94,6 +101,7 @@ async def send_admin_error(error_text):
     except:
         pass
 
+
 # ==============================
 # STATE
 # ==============================
@@ -104,6 +112,7 @@ user_selected_social = {}
 user_selected_account = {}
 user_binance_id = {}
 user_withdraw_amount = {}
+user_video_screenshots = {}
 current_task = {}
 skipped_tasks = {}
 
@@ -112,36 +121,309 @@ skipped_tasks = {}
 # DATABASE HELPERS
 # ==============================
 
+def db_user_id(user_id):
+    try:
+        return int(user_id)
+    except:
+        return user_id
+
+
+def first_row(data):
+    return data[0] if data else None
+
+
+def parse_limit(value):
+    if value is None:
+        return None
+
+    text = str(value).strip()
+    if not text:
+        return None
+
+    try:
+        limit = int(float(text.replace(",", ".")))
+    except:
+        return None
+
+    return limit if limit > 0 else None
+
+
+def parse_date(value):
+    if not value:
+        return None
+
+    try:
+        return datetime.fromisoformat(str(value).replace("Z", "+00:00")).date()
+    except:
+        return None
+
+
+def rpc_json(response):
+    data = response.data
+
+    if isinstance(data, list):
+        if not data:
+            return {}
+        return data[0]
+
+    return data or {}
+
+
+def call_rpc(name, params):
+    return rpc_json(supabase.rpc(name, params).execute())
+
+
+def select_first(table, columns="*", **filters_eq):
+    query = supabase.table(table).select(columns)
+    for key, value in filters_eq.items():
+        query = query.eq(key, value)
+    return first_row(query.limit(1).execute().data)
+
+
 def get_users():
-    return supabase.table("Users").select("*").execute().data
+    return supabase.table("Users").select("*").execute().data or []
+
+
+def get_user_row(user_id, columns="*"):
+    return select_first("Users", columns, telegram_id=db_user_id(user_id))
+
+
+def user_exists(user_id):
+    return bool(get_user_row(user_id, "id"))
 
 
 def get_tasks():
-    return supabase.table("Tasks").select("*").execute().data
+    return supabase.table("Tasks").select("*").execute().data or []
 
 
 def get_templates():
-    return supabase.table("TaskTemplates").select("*").execute().data
+    return supabase.table("TaskTemplates").select("*").execute().data or []
 
 
 def get_accounts():
-    accounts = (
+    return (
         supabase
         .table("Accounts")
         .select("*")
         .eq("in_cabinet", True)
         .execute()
         .data
+        or []
     )
-    return accounts
+
+
+def get_user_approved_accounts(user_id, social_network=None):
+    query = (
+        supabase
+        .table("Accounts")
+        .select("id, social_network, username")
+        .eq("telegram_id", db_user_id(user_id))
+        .eq("status", "Approved")
+        .eq("in_cabinet", True)
+    )
+
+    if social_network:
+        query = query.eq("social_network", social_network)
+
+    return query.execute().data or []
+
+
+def get_task_account(user_id, social_network, account_name):
+    return (
+        supabase
+        .table("Accounts")
+        .select("id, telegram_id, username, status, social_network, gender, region")
+        .eq("telegram_id", db_user_id(user_id))
+        .eq("username", account_name)
+        .eq("social_network", social_network)
+        .eq("status", "Approved")
+        .eq("in_cabinet", True)
+        .limit(1)
+        .execute()
+        .data
+        or []
+    )
+
+
+def load_active_reserved_task(user_id):
+    rows = (
+        supabase
+        .table("Tasks")
+        .select("id, telegram_id, social_network, account, task_id, link, comment_text, comment_row_id, screenfile_id")
+        .eq("telegram_id", db_user_id(user_id))
+        .eq("status", "Reserved")
+        .order("assign_date", desc=True)
+        .limit(1)
+        .execute()
+        .data
+        or []
+    )
+
+    if not rows:
+        return None
+
+    row = rows[0]
+    template = (
+        supabase
+        .table("TaskTemplates")
+        .select("task_type, reward, link")
+        .eq("task_id", row.get("task_id"))
+        .limit(1)
+        .execute()
+        .data
+        or []
+    )
+
+    task_type = template[0].get("task_type") if template else ""
+    reward = template[0].get("reward") if template else 0
+    link = row.get("link") or (template[0].get("link") if template else "")
+
+    return {
+        "task_record_id": row.get("id"),
+        "task_id": row.get("task_id"),
+        "social": row.get("social_network"),
+        "account": row.get("account"),
+        "type": task_type,
+        "link": link,
+        "reward": reward,
+        "comment": row.get("comment_text") or "",
+        "comment_row_id": row.get("comment_row_id"),
+        "screenfile_id": row.get("screenfile_id")
+    }
+
+
+def account_username_exists(username):
+    return bool(
+        supabase
+        .table("Accounts")
+        .select("id")
+        .eq("in_cabinet", True)
+        .ilike("username", username)
+        .limit(1)
+        .execute()
+        .data
+    )
+
+
+def account_profile_exists(profile_link):
+    return bool(
+        supabase
+        .table("Accounts")
+        .select("id")
+        .eq("in_cabinet", True)
+        .ilike("profile_link", profile_link)
+        .limit(1)
+        .execute()
+        .data
+    )
 
 
 def get_withdrawals():
-    return supabase.table("Withdrawals").select("*").execute().data
+    return supabase.table("Withdrawals").select("*").execute().data or []
+
+
+def has_pending_withdrawal(user_id):
+    return bool(
+        supabase
+        .table("Withdrawals")
+        .select("id")
+        .eq("telegram_id", db_user_id(user_id))
+        .eq("status", "Pending")
+        .limit(1)
+        .execute()
+        .data
+    )
 
 
 def get_comments():
-    return supabase.table("Comment_Pool").select("*").execute().data
+    return supabase.table("Comment_Pool").select("*").execute().data or []
+
+
+def is_screenshot_used(file_id, exclude_task_id=None):
+    if not file_id:
+        return False
+
+    query = (
+        supabase
+        .table("Tasks")
+        .select("id")
+        .or_(f"screenfile_id.eq.{file_id},screenfile_id_2.eq.{file_id}")
+    )
+
+    if exclude_task_id:
+        query = query.neq("id", exclude_task_id)
+
+    return bool(query.limit(1).execute().data)
+
+
+def cleanup_expired_reservations():
+    try:
+        supabase.rpc("cleanup_expired_reservations", {
+            "p_minutes": 30
+        }).execute()
+    except Exception as e:
+        logging.error(f"Reservation cleanup error: {e}")
+
+
+def release_reserved_task(task_record_id):
+    if not task_record_id:
+        return
+
+    try:
+        supabase.rpc("release_reserved_task", {
+            "p_task_record_id": str(task_record_id)
+        }).execute()
+    except Exception as e:
+        logging.error(f"Release reserved task error: {e}")
+
+
+def release_current_task(user_id):
+    task = current_task.get(user_id)
+    if task:
+        release_reserved_task(task.get("task_record_id"))
+
+
+def reserve_task_assignment(user_id, social_network, account_name, template, user_gender, user_region):
+    return call_rpc("reserve_task_assignment", {
+        "p_telegram_id": db_user_id(user_id),
+        "p_social_network": social_network,
+        "p_account": account_name,
+        "p_task_id": int(template["_task_id_int"]),
+        "p_link": (template.get("link") or "").strip(),
+        "p_task_type": str(template.get("task_type") or ""),
+        "p_user_gender": user_gender,
+        "p_user_region": user_region,
+        "p_reserve_minutes": 30
+    })
+
+
+def submit_reserved_task(task_record_id, file_id, file_id_2=None):
+    return call_rpc("submit_reserved_task_atomic", {
+        "p_task_record_id": str(task_record_id),
+        "p_screenfile_id": file_id,
+        "p_screenfile_id_2": file_id_2
+    })
+
+
+def approve_task_atomic(task_record_id):
+    return call_rpc("approve_task_atomic", {
+        "p_task_record_id": str(task_record_id)
+    })
+
+
+def finalize_withdrawal_atomic(withdrawal_id, status):
+    return call_rpc("finalize_withdrawal_atomic", {
+        "p_withdrawal_id": str(withdrawal_id),
+        "p_status": status
+    })
+
+
+def count_rows(table, status=None):
+    query = supabase.table(table).select("id", count="exact")
+    if status:
+        query = query.eq("status", status)
+    res = query.execute()
+    return res.count if res.count else 0
 
 
 # ==============================
@@ -149,95 +431,58 @@ def get_comments():
 # ==============================
 
 def get_user_data(user_id):
+    row = get_user_row(user_id, "balance, total, status")
 
-    users = get_users()
-
-    for row in users:
-
-        if str(row.get("telegram_id")) == str(user_id):
-
-            balance = int(row.get("balance") or 0)
-            total = int(row.get("total") or 0)
-            status = row.get("status") or "Active"
-
-            return balance, total, status
+    if row:
+        balance = int(row.get("balance") or 0)
+        total = int(row.get("total") or 0)
+        status = row.get("status") or "Active"
+        return balance, total, status
 
     return 0, 0, "Active"
 
 
 def update_user_balance(user_id, amount):
-
-    users = get_users()
-
-    for row in users:
-
-        if str(row.get("telegram_id")) == str(user_id):
-
-            balance = int(row.get("balance") or 0)
-
-            supabase.table("Users").update({
-                "balance": balance + amount
-            }).eq("telegram_id", user_id).execute()
-
-            return
+    supabase.rpc("adjust_user_balance", {
+        "p_telegram_id": db_user_id(user_id),
+        "p_amount": int(amount)
+    }).execute()
 
 
 def deduct_user_balance(user_id, amount):
-
-    users = get_users()
-
-    for row in users:
-
-        if str(row.get("telegram_id")) == str(user_id):
-
-            balance = int(row.get("balance") or 0)
-
-            supabase.table("Users").update({
-                "balance": balance - amount
-            }).eq("telegram_id", user_id).execute()
-
-            return
+    supabase.rpc("adjust_user_balance", {
+        "p_telegram_id": db_user_id(user_id),
+        "p_amount": -int(amount)
+    }).execute()
 
 
 def add_to_user_total(user_id, amount):
+    supabase.rpc("adjust_user_total", {
+        "p_telegram_id": db_user_id(user_id),
+        "p_amount": int(amount)
+    }).execute()
 
-    users = get_users()
 
-    for row in users:
-
-        if str(row.get("telegram_id")) == str(user_id):
-
-            total = int(row.get("total") or 0)
-
-            supabase.table("Users").update({
-                "total": total + amount
-            }).eq("telegram_id", user_id).execute()
-
-            return
 # ==============================
 # USER STATS
 # ==============================
 
 def get_user_stats(user_id):
+    row = get_user_row(user_id, "register")
+    reg_date = row.get("register") if row else "_"
 
-    users = get_users()
-    reg_date = "_"
-    for row in users:
-        if str(row.get("telegram_id")) == str(user_id):
-            reg_date = row.get("register") or "_"
-            break
     res = (
         supabase
         .table("Tasks")
         .select("id", count="exact")
-        .eq("telegram_id", user_id)
+        .eq("telegram_id", db_user_id(user_id))
         .eq("status", "Approved")
         .execute()
     )
     completed_tasks = res.count if res.count else 0
 
-
     return reg_date, completed_tasks
+
 
 # ==============================
 # 👤 CABINET UI
@@ -253,7 +498,6 @@ def generate_profile_text(
     status="Активний",
     min_withdraw_fanki=1000
 ):
-
     usd_balance = round(fanki_balance / 1000, 2)
 
     withdraw_available = fanki_balance >= min_withdraw_fanki
@@ -270,45 +514,47 @@ def generate_profile_text(
     progress_bar = "🟩" * bars + "⬜" * (10 - bars)
 
     text = (
-f"👤 Ваш кабінет\n\n"
-f"💰 Баланс: {fanki_balance} Fanki (≈ {usd_balance}$)\n\n"
-f"💸 Доступно до виводу: {usd_balance}$\n"
-f"{withdraw_status}\n\n"
-f"📈 Прогрес до виводу\n"
-f"{progress_bar} {percent}%\n\n"
-f"📊 Завдання\n"
-f"✅ Виконано всього: {tasks_total}\n"
-f"⚡ Виконано сьогодні: {tasks_today}\n\n"
-f"🏆 Заробіток\n"
-f"💰 Зароблено всього: {earned_total} Fanki\n"
-f"🔥 Зароблено сьогодні: {earned_today} Fanki\n\n"
-f"📅 Дата реєстрації: {reg_date}\n"
-f"🟢 Статус: {status}"
+        f"👤 Ваш кабінет\n\n"
+        f"💰 Баланс: {fanki_balance} Fanki (≈ {usd_balance}$)\n\n"
+        f"💸 Доступно до виводу: {usd_balance}$\n"
+        f"{withdraw_status}\n\n"
+        f"📈 Прогрес до виводу\n"
+        f"{progress_bar} {percent}%\n\n"
+        f"📊 Завдання\n"
+        f"✅ Виконано всього: {tasks_total}\n"
+        f"⚡ Виконано сьогодні: {tasks_today}\n\n"
+        f"🏆 Заробіток\n"
+        f"💰 Зароблено всього: {earned_total} Fanki\n"
+        f"🔥 Зароблено сьогодні: {earned_today} Fanki\n\n"
+        f"📅 Дата реєстрації: {reg_date}\n"
+        f"🟢 Статус: {status}"
     )
 
     return text
-    
+
+
 # ==============================
 # USER PROFILE DATA (CABINET)
 # ==============================
 
 async def get_user_profile_data(user_id):
-
-    user = supabase.table("Users")\
-        .select("*")\
-        .eq("telegram_id", int(user_id))\
-        .execute().data
+    user = (
+        supabase
+        .table("Users")
+        .select("balance, register")
+        .eq("telegram_id", db_user_id(user_id))
+        .limit(1)
+        .execute()
+        .data
+    )
 
     if not user:
         return None
 
     user = user[0]
 
-    from datetime import datetime
-
     # --- БАЛАНС ---
     fanki_balance = int(user.get("balance", 0))
-    from datetime import datetime
 
     reg_date_raw = user.get("register")
 
@@ -319,10 +565,15 @@ async def get_user_profile_data(user_id):
         reg_date = "—"
 
     # --- ВСІ ЗАВДАННЯ ---
-    tasks = supabase.table("Tasks")\
-        .select("status, task_id, assign_date, approve_date")\
-        .eq("telegram_id", user_id)\
-        .execute().data
+    tasks = (
+        supabase
+        .table("Tasks")
+        .select("status, task_id, assign_date, approve_date")
+        .eq("telegram_id", db_user_id(user_id))
+        .execute()
+        .data
+        or []
+    )
 
     today = datetime.utcnow().date()
 
@@ -331,9 +582,14 @@ async def get_user_profile_data(user_id):
     earned_total = 0
     earned_today = 0
 
-    templates = supabase.table("TaskTemplates")\
-        .select("task_id, reward")\
-        .execute().data
+    templates = (
+        supabase
+        .table("TaskTemplates")
+        .select("task_id, reward")
+        .execute()
+        .data
+        or []
+    )
 
     reward_map = {
         int(t["task_id"]): int(t["reward"])
@@ -341,9 +597,7 @@ async def get_user_profile_data(user_id):
     }
 
     for t in tasks:
-
         if t.get("status") == "Approved":
-
             tasks_total += 1
 
             task_id = int(t.get("task_id") or 0)
@@ -371,31 +625,28 @@ async def get_user_profile_data(user_id):
         "reg_date": reg_date
     }
 
+
 # ==============================
 # MENU
 # ==============================
 
 async def show_main_menu(update: Update):
-
     user_id = update.effective_user.id
     balance, total, status = get_user_data(user_id)
 
     if status == "Banned":
-
         await update.message.reply_text(
             "🚫 Ваш акаунт заблоковано адміністрацією."
         )
         return
 
     if status == "Under Review":
-
         await update.message.reply_text(
             "⏳ Ваш акаунт тимчасово на перевірці."
         )
         return
 
     if is_admin(user_id):
-
         markup = ReplyKeyboardMarkup(
             [
                 ["📢 Розсилка"],
@@ -413,10 +664,13 @@ async def show_main_menu(update: Update):
         )
         return
 
-    res = supabase.table("Users")\
-        .select("id", count="exact")\
-        .eq("status", "Active")\
+    res = (
+        supabase
+        .table("Users")
+        .select("id", count="exact")
+        .eq("status", "Active")
         .execute()
+    )
 
     active_users = res.count if res.count else 0
 
@@ -433,18 +687,18 @@ async def show_main_menu(update: Update):
     )
 
     text = (
-    "👋 Ласкаво просимо до головного меню!\n\n"
-    "📌 Тут ви можете:\n\n"
-    "➕ Зареєструвати акаунт для роботи\n"
-    "ℹ️ Дізнатися інформацію про бот, валюту та методи виводу\n"
-    "🛠 Звернутися до підтримки\n"
-    "💸 Подати заявку на вивід коштів\n"
-    "📋 Отримати завдання\n\n"
-    "📢 Новини, оновлення та інструкції:https://t.me/+XnLg96cCpKpkMjA8 \n"
-    "💬 Спільнота користувачів\n"
-    "⚠️ Для отримання завдань необхідно спочатку зареєструвати акаунт.\n\n"
-    f"👥 Активних користувачів: {active_users}\n\n"
-    "👇 Оберіть потрібний пункт нижче"
+        "👋 Ласкаво просимо до головного меню!\n\n"
+        "📌 Тут ви можете:\n\n"
+        "➕ Зареєструвати акаунт для роботи\n"
+        "ℹ️ Дізнатися інформацію про бот, валюту та методи виводу\n"
+        "🛠 Звернутися до підтримки\n"
+        "💸 Подати заявку на вивід коштів\n"
+        "📋 Отримати завдання\n\n"
+        "📢 Новини, оновлення та інструкції:https://t.me/+XnLg96cCpKpkMjA8 \n"
+        "💬 Спільнота користувачів\n"
+        "⚠️ Для отримання завдань необхідно спочатку зареєструвати акаунт.\n\n"
+        f"👥 Активних користувачів: {active_users}\n\n"
+        "👇 Оберіть потрібний пункт нижче"
     )
 
     await update.message.reply_text(text, reply_markup=markup)
@@ -455,7 +709,6 @@ async def show_main_menu(update: Update):
 # ==============================
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
     user_id = update.effective_user.id
     username = update.effective_user.username or update.effective_user.first_name
 
@@ -499,7 +752,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ==============================
 
 async def safe_edit_caption(query, text):
-
     try:
         await query.edit_message_caption(text)
     except:
@@ -511,12 +763,14 @@ async def safe_edit_caption(query, text):
 # ==============================
 
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
     query = update.callback_query
     if not query:
         return
 
     await query.answer()
+
+    if not can_use_callback(query.from_user.id):
+        return
 
     data_raw = query.data or ""
 
@@ -526,14 +780,12 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     action, record_id = data_raw.split("|", 1)
 
     try:
-
         # =========================
         # ACCOUNT APPROVE / REJECT
         # =========================
 
         if action in ["account_approve", "account_reject"]:
-
-            res = supabase.table("Accounts").select("*").eq("id", record_id).execute()
+            res = supabase.table("Accounts").select("*").eq("id", record_id).limit(1).execute()
             if not res.data:
                 return
 
@@ -547,7 +799,6 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             nickname = row["username"]
 
             if action == "account_approve":
-
                 supabase.table("Accounts").update({
                     "status": "Approved"
                 }).eq("id", record_id).execute()
@@ -560,7 +811,6 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await query.edit_message_text("✅ Акаунт підтверджено")
 
             else:
-
                 supabase.table("Accounts").update({
                     "status": "Rejected"
                 }).eq("id", record_id).execute()
@@ -577,8 +827,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # =========================
 
         elif action in ["task_approve", "task_reject"]:
-
-            res = supabase.table("Tasks").select("*").eq("id", record_id).execute()
+            res = supabase.table("Tasks").select("*").eq("id", record_id).limit(1).execute()
             if not res.data:
                 return
 
@@ -590,31 +839,32 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             user_id = row["telegram_id"]
             task_id = row["task_id"]
 
-            template = supabase.table("TaskTemplates").select("*").eq("task_id", task_id).execute().data
+            template = (
+                supabase
+                .table("TaskTemplates")
+                .select("task_type, link, reward")
+                .eq("task_id", task_id)
+                .limit(1)
+                .execute()
+                .data
+            )
 
             task_type = template[0]["task_type"] if template else ""
             link = template[0]["link"] if template else ""
-
             action_text = TASK_TEXT.get(str(task_type).lower(), task_type)
 
             if action == "task_approve":
+                approved = approve_task_atomic(record_id)
+                if not approved.get("ok"):
+                    return
 
-                supabase.table("Tasks").update({
-                    "status": "Approved",
-                    "paid": "Paid",
-                    "approve_date": datetime.utcnow().isoformat()
-                }).eq("id", record_id).execute()
-
-                template = supabase.table("TaskTemplates").select("*").eq("task_id", task_id).execute().data
-
-                reward = int(template[0]["reward"]) if template else 0
-
-                task_type = template[0]["task_type"]
-                link = template[0]["link"]
+                user_id = approved.get("telegram_id", user_id)
+                task_id = approved.get("task_id", task_id)
+                task_type = approved.get("task_type", task_type)
+                link = approved.get("link", link)
+                reward = int(approved.get("reward") or 0)
                 action_text = TASK_TEXT.get(str(task_type).lower(), task_type)
 
-                update_user_balance(user_id, reward)
-                add_to_user_total(user_id, reward)
 
                 msg = (
                     "✅ Дякуємо за виконання завдання!\n\n"
@@ -635,10 +885,9 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await safe_edit_caption(query, new_caption)
 
             else:
-
                 supabase.table("Tasks").update({
                     "status": "Rejected"
-                }).eq("id", record_id).execute()
+                }).eq("id", record_id).eq("status", "Pending").execute()
 
                 msg = (
                     "❌ Завдання відхилено\n\n"
@@ -649,8 +898,8 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 )
 
                 await context.bot.send_message(
-                  chat_id=int(user_id),
-                  text=msg
+                    chat_id=int(user_id),
+                    text=msg
                 )
 
                 old_caption = query.message.caption or ""
@@ -663,8 +912,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # =========================
 
         elif action in ["withdraw_approve", "withdraw_reject"]:
-
-            res = supabase.table("Withdrawals").select("*").eq("id", record_id).execute()
+            res = supabase.table("Withdrawals").select("*").eq("id", record_id).limit(1).execute()
             if not res.data:
                 return
 
@@ -677,17 +925,20 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             amount = int(row["amount"])
 
             if action == "withdraw_approve":
+                finalized = finalize_withdrawal_atomic(record_id, "Approved")
+                if not finalized.get("ok"):
+                    return
 
-                supabase.table("Withdrawals").update({
-                    "status": "Approved"
-                }).eq("id", record_id).execute()
+                user_id = finalized.get("telegram_id", user_id)
+                amount = int(finalized.get("amount") or amount)
+                binance_id = finalized.get("binance_id") or row["binance_id"]
 
                 await context.bot.send_message(
                     chat_id=int(user_id),
                     text=(
                         "✅ Ваш вивід підтверджено!\n\n"
                         f"💰 Сума: {amount} Fanki\n"
-                        f"🏦 Binance ID: {row['binance_id']}\n\n"
+                        f"🏦 Binance ID: {binance_id}\n\n"
                         "🙏 Дякуємо за участь у Fanki!"
                     )
                 )
@@ -695,19 +946,20 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await query.edit_message_text("✅ Вивід підтверджено")
 
             else:
+                finalized = finalize_withdrawal_atomic(record_id, "Rejected")
+                if not finalized.get("ok"):
+                    return
 
-                supabase.table("Withdrawals").update({
-                    "status": "Rejected"
-                }).eq("id", record_id).execute()
-
-                update_user_balance(user_id, amount)
+                user_id = finalized.get("telegram_id", user_id)
+                amount = int(finalized.get("amount") or amount)
+                binance_id = finalized.get("binance_id") or row["binance_id"]
 
                 await context.bot.send_message(
                     chat_id=int(user_id),
                     text=(
                         "❌ Ваш запит на вивід відхилено\n\n"
                         f"💰 Сума: {amount} Fanki\n"
-                        f"🏦 Binance ID: {row['binance_id']}\n\n"
+                        f"🏦 Binance ID: {binance_id}\n\n"
                         "💰 Кошти повернено на ваш баланс."
                     )
                 )
@@ -716,30 +968,14 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     except Exception as e:
         logging.error(f"Callback error: {e}")
+
+
 # =============================
 # SEND NEXT TASK
 # =============================
 
 async def send_next_task(update: Update, user_id: str):
-
-    templates = (
-        supabase
-        .table("TaskTemplates")
-        .select("*")
-        .order("id")
-        .execute()
-        .data
-    )
-
-    comments = (
-        supabase
-        .table("Comment_Pool")
-        .select("*")
-        .eq("active", True)
-        .execute()
-    ).data
-
-    accounts = supabase.table("Accounts").select("*").execute().data
+    cleanup_expired_reservations()
 
     if user_id not in user_selected_social:
         await update.message.reply_text("Помилка: соцмережа не вибрана.")
@@ -747,53 +983,9 @@ async def send_next_task(update: Update, user_id: str):
 
     social_network = user_selected_social[user_id]
     account_name = user_selected_account.get(user_id)
-    
-    # --- PRELOAD TASK STATS ---
-    all_tasks = supabase.table("Tasks")\
-        .select("task_id, status, assign_date")\
-        .execute().data
 
-    total_done_map = {}
-    day_done_map = {}
-
-    from datetime import datetime
-    today = datetime.utcnow().date()
-
-    for t in all_tasks:
-        if t["status"] != "Approved":
-            continue
-
-        tid = int(t["task_id"])
-
-        total_done_map[tid] = total_done_map.get(tid, 0) + 1
-
-        if t.get("assign_date"):
-            try:
-                d = datetime.fromisoformat(t["assign_date"]).date()
-                if d == today:
-                    day_done_map[tid] = day_done_map.get(tid, 0) + 1
-            except:
-                pass
-
-
-    tasks = (
-        supabase
-        .table("Tasks")
-        .select("*")
-        .eq("account", account_name)
-        .eq("social_network", social_network)
-        .execute()
-    ).data
-
-    account_row = next(
-        (
-            r for r in accounts
-            if str(r.get("telegram_id")) == str(user_id)
-            and r.get("username") == account_name
-            and r.get("status") == "Approved"
-        ),
-        None
-    )
+    account_rows = get_task_account(user_id, social_network, account_name)
+    account_row = account_rows[0] if account_rows else None
 
     if not account_row:
         await update.message.reply_text("Акаунт не підтверджений.")
@@ -805,6 +997,75 @@ async def send_next_task(update: Update, user_id: str):
     # ✅ РЕГІОН КОРИСТУВАЧА
     user_region = str(account_row.get("region") or "all").strip().lower()
 
+    templates = (
+        supabase
+        .table("TaskTemplates")
+        .select("id, task_id, task_type, link, reward, active, social_network, gender_target, region_target, max_total, max_per_day")
+        .eq("active", True)
+        .eq("social_network", social_network)
+        .order("id")
+        .execute()
+        .data
+        or []
+    )
+
+    prepared_templates = []
+    for template in templates:
+        try:
+            template["_task_id_int"] = int(template.get("task_id"))
+        except:
+            continue
+        prepared_templates.append(template)
+
+    candidate_task_ids = [t["_task_id_int"] for t in prepared_templates]
+    comment_task_ids = [
+        t["_task_id_int"]
+        for t in prepared_templates
+        if str(t.get("task_type")).lower() == "comment"
+    ]
+
+    # --- PRELOAD TASK STATS ---
+    total_used_map = {}
+    day_used_map = {}
+
+    if candidate_task_ids:
+        all_tasks = (
+            supabase
+            .table("Tasks")
+            .select("task_id, assign_date, status")
+            .in_("status", ["Pending", "Approved"])
+            .in_("task_id", candidate_task_ids)
+            .execute()
+            .data
+            or []
+        )
+
+        today = datetime.utcnow().date()
+
+        for t in all_tasks:
+            try:
+                tid = int(t["task_id"])
+            except:
+                continue
+
+            total_used_map[tid] = total_used_map.get(tid, 0) + 1
+
+            d = parse_date(t.get("assign_date"))
+            if d == today:
+                day_used_map[tid] = day_used_map.get(tid, 0) + 1
+
+    tasks = (
+        supabase
+        .table("Tasks")
+        .select("task_id")
+        .eq("account", account_name)
+        .eq("social_network", social_network)
+        .in_("task_id", candidate_task_ids)
+        .execute()
+        .data
+        or []
+    )
+
     # already used task_ids
     done_task_ids = set()
 
@@ -814,11 +1075,47 @@ async def send_next_task(update: Update, user_id: str):
         except:
             pass
 
-    for template in templates:
+    comments_by_task = {}
+    recent_comment_accounts = set()
 
-        if not template.get("active"):
-            continue
+    if comment_task_ids:
+        comments = (
+            supabase
+            .table("Comment_Pool")
+            .select("id, task_id, comment, active, gender, region")
+            .eq("active", True)
+            .in_("task_id", comment_task_ids)
+            .execute()
+            .data
+            or []
+        )
 
+        for comment in comments:
+            try:
+                tid = int(comment.get("task_id"))
+            except:
+                continue
+            comments_by_task.setdefault(tid, []).append(comment)
+
+        recent_comments = (
+            supabase
+            .table("Tasks")
+            .select("account")
+            .neq("comment_text", "")
+            .order("assign_date", desc=True)
+            .limit(180)
+            .execute()
+            .data
+            or []
+        )
+
+        recent_comment_accounts = {
+            r.get("account")
+            for r in recent_comments
+            if r.get("account")
+        }
+
+    for template in prepared_templates:
         if str(template.get("social_network")).lower() != str(social_network).lower():
             continue
 
@@ -832,26 +1129,23 @@ async def send_next_task(update: Update, user_id: str):
         if task_region != "all" and task_region != user_region:
             continue
 
-        try:
-            task_id = int(template.get("task_id"))
-        except:
-            continue
-            
+        task_id = template["_task_id_int"]
+
         # =============================
         # LIMITS (швидка версія)
         # =============================
 
-        max_total = template.get("max_total")
-        max_per_day = template.get("max_per_day")
+        max_total = parse_limit(template.get("max_total"))
+        max_per_day = parse_limit(template.get("max_per_day"))
 
-        if max_total:
-            if total_done_map.get(task_id, 0) >= max_total:
+        if max_total is not None:
+            if total_used_map.get(task_id, 0) >= max_total:
                 continue
 
-        if max_per_day:
-            if day_done_map.get(task_id, 0) >= max_per_day:
+        if max_per_day is not None:
+            if day_used_map.get(task_id, 0) >= max_per_day:
                 continue
-                
+
         if task_id in done_task_ids:
             continue
 
@@ -862,26 +1156,22 @@ async def send_next_task(update: Update, user_id: str):
 
         # --- COMMENT TIMER (НЕ ЧІПАЄМО) ---
         if str(task_type).lower() == "comment":
-            recent_comments = supabase.table("Tasks")\
-                .select("account")\
-                .neq("comment_text", "")\
-                .order("assign_date", desc=True)\
-                .limit(180)\
-                .execute()
-
-            recent_accounts = [r["account"] for r in recent_comments.data]
-
-            if account_name in recent_accounts:
+            if account_name in recent_comment_accounts:
                 continue
 
-            last_comment = supabase.table("Tasks").select("assign_date") \
-                .eq("task_id", task_id) \
-                .neq("comment_text", "") \
-                .order("assign_date", desc=True) \
-                .limit(1).execute()
+            last_comment = (
+                supabase
+                .table("Tasks")
+                .select("assign_date")
+                .eq("task_id", task_id)
+                .neq("comment_text", "")
+                .order("assign_date", desc=True)
+                .limit(1)
+                .execute()
+            )
 
             if last_comment.data:
-                from datetime import datetime, timedelta
+                from datetime import timedelta
 
                 last_time = datetime.fromisoformat(last_comment.data[0]["assign_date"])
                 now_time = datetime.now(last_time.tzinfo)
@@ -893,67 +1183,24 @@ async def send_next_task(update: Update, user_id: str):
         reward = template.get("reward")
         action_text = TASK_TEXT.get(str(task_type).lower(), task_type)
 
-        comment_text = ""
-        comment_row_id = None
+        reservation = reserve_task_assignment(
+            user_id,
+            social_network,
+            account_name,
+            template,
+            user_gender,
+            user_region
+        )
 
-        if str(task_type).lower() == "comment":
+        if not reservation.get("ok"):
+            continue
 
-    # ✅ 1. СПОЧАТКУ: гендер + регіон
-            available_comments = [
-                c for c in comments
-                if int(c.get("task_id")) == int(task_id)
-                and c.get("active") == True
-                and str(c.get("gender") or "all").strip().lower() == user_gender
-                and str(c.get("region") or "all").strip().lower() == user_region
-            ]
-
-    # ✅ 2. FALLBACK: гендер + all регіон
-            if not available_comments:
-                available_comments = [
-                    c for c in comments
-                    if int(c.get("task_id")) == int(task_id)
-                    and c.get("active") == True
-                    and str(c.get("gender") or "all").strip().lower() == user_gender
-                    and str(c.get("region") or "all").strip().lower() == "all"
-            ]
-
-    # ✅ 3. FALLBACK: all гендер + all регіон
-            if not available_comments:
-                available_comments = [
-                    c for c in comments
-                    if int(c.get("task_id")) == int(task_id)
-                    and c.get("active") == True
-                    and str(c.get("gender") or "all").strip().lower() == "all"
-                    and str(c.get("region") or "all").strip().lower() == "all"
-            ]
-
-            if not available_comments:
-                continue
-
-            comment = available_comments[0]
-            comment_text = comment.get("comment")
-            comment_row_id = comment.get("id")
-
-            # РЕЗЕРВАЦІЯ
-            from datetime import datetime
-
-            supabase.table("Tasks").insert({
-                "telegram_id": user_id,
-                "social_network": social_network,
-                "account": account_name,
-                "task_id": task_id,
-                "link": link,
-                "status": "Reserved",
-                "assign_date": datetime.utcnow().isoformat(),
-                "comment_text": comment_text
-            }).execute()
-
-            # ВИМИКАЄМО КОМЕНТАР
-            supabase.table("Comment_Pool").update(
-                {"active": False}
-            ).eq("id", comment_row_id).execute()
+        comment_text = reservation.get("comment_text") or ""
+        comment_row_id = reservation.get("comment_row_id")
+        task_record_id = reservation.get("task_record_id")
 
         current_task[user_id] = {
+            "task_record_id": task_record_id,
             "task_id": task_id,
             "social": social_network,
             "type": task_type,
@@ -964,7 +1211,6 @@ async def send_next_task(update: Update, user_id: str):
         }
 
         if str(task_type).lower() == "comment":
-
             msg = (
                 "📌 Завдання\n\n"
                 "⚠️ Обов'язково зробіть скрін виконаної дії!\n\n"
@@ -981,7 +1227,6 @@ async def send_next_task(update: Update, user_id: str):
             await update.message.reply_text(comment_text)
 
         else:
-
             msg = (
                 "📌 Завдання\n\n"
                 "⚠️ Обов'язково зробіть скрін виконаної дії!\n\n"
@@ -1018,13 +1263,11 @@ async def send_next_task(update: Update, user_id: str):
     )
 
 
-
 # ==============================
 # USER MESSAGE HANDLER
 # ==============================
 
 async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
     user_id = update.effective_user.id
     username = update.effective_user.username or update.effective_user.first_name
     text = update.message.text if update.message.text else ""
@@ -1039,9 +1282,9 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     if status == "Under Review":
         await update.message.reply_text("⏳ Ваш акаунт тимчасово на перевірці.")
         return
+
     # --------  ACCOUNT ----------
     if text.startswith("/remove_"):
-        
         account_id = text.replace("/remove_", "").strip()
 
         supabase.table("Accounts").update({
@@ -1051,9 +1294,11 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.message.reply_text("✅ Акаунт видалено з кабінету.")
 
         return
+
     # ---------------- BACK ----------------
 
     if text in ["⬅️ Назад", "Назад", "/cancel"]:
+        release_current_task(user_id)
 
         user_state.pop(user_id, None)
         admin_state.pop(user_id, None)
@@ -1061,6 +1306,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         user_selected_account.pop(user_id, None)
         user_binance_id.pop(user_id, None)
         user_withdraw_amount.pop(user_id, None)
+        user_video_screenshots.pop(user_id, None)
         current_task.pop(user_id, None)
 
         await show_main_menu(update)
@@ -1077,13 +1323,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     # ---------------- ACCEPT RULES ----------------
 
     if state == "await_accept" and text == "Приймаю":
-
-        users = get_users()
-
-        exists = any(str(r.get("telegram_id")) == str(user_id) for r in users)
-
-        if not exists:
-
+        if not user_exists(user_id):
             supabase.table("Users").insert({
                 "telegram_id": user_id,
                 "username": username,
@@ -1101,13 +1341,12 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     # ---------------- CABINET ----------------
 
     if text == "👤Мій кабінет":
-        
         data = await get_user_profile_data(user_id)
-        
+
         if not data:
             await update.message.reply_text("🧱Помилка завантаження профілю")
             return
-            
+
         profile_text = generate_profile_text(**data)
 
         await update.message.reply_text(profile_text)
@@ -1116,7 +1355,6 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     # ---------------- INFO ----------------
 
     if text == "ℹ️Інформація про бот":
-
         await update.message.reply_text(
             "🤖Про платформу🚀\n"
             "Ми допомагаємо блогерам підтримувати активність у соціальних мережах.\n\n"
@@ -1133,24 +1371,19 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             "• оновлення\n"
             "• інструкції\n"
             "• корисна інформація по роботі\n"
-
-           "👇 Канал:\n"
-           "https://t.me/+XnLg96cCpKpkMjA8\n\n"
-
-
-           "💬 Група обговорення та допомоги:\n"
-           "https://t.me/+5_xjkinfaaw3OGQ0"
+            "👇 Канал:\n"
+            "https://t.me/+XnLg96cCpKpkMjA8\n\n"
+            "💬 Група обговорення та допомоги:\n"
+            "https://t.me/+5_xjkinfaaw3OGQ0"
         )
         return
 
     # ---------------- SUPPORT ----------------
 
     if text == "🛠Підтримка":
-
         await update.message.reply_text(
             "📩 Підтримка:\n"
             "Якщо у вас виникли питання або проблеми під час роботи — зверніться до адміністратора.\n\n"
-
             "💬 Також ви можете поставити питання у спільноті користувачів.\n"
             "Де учасники та адміністрація допомагають вирішувати проблеми та діляться досвідом."
         )
@@ -1159,7 +1392,6 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     # ---------------- REGISTER ACCOUNT ----------------
 
     if text == "➕Реєстрація акаунту":
-
         buttons = [[name] for name in SOCIALS.values()]
         buttons.append(["⬅️ Назад"])
 
@@ -1172,12 +1404,10 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 
         await update.message.reply_text(
             "📋 Перед реєстрацією акаунту ознайомтесь з вимогами.\n\n"
-
             "Instagram / TikTok / Facebook:\n"
             "• Акаунт має бути відкритий\n"
             "• Мінімум 50 підписників\n"
             "• Мінімум 5 постів\n\n"
-
             "Google Maps (Google акаунт):\n"
             "Профіль має бути активним та виглядати природно. Бажано, щоб він містив:\n"
             "• Фото профілю\n"
@@ -1187,7 +1417,6 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             "• Різні оцінки (не лише 5⭐)\n"
             "• Кілька фото у відгуках\n"
             "• Лайки чужих відгуків\n\n"
-
             "⚠️ Акаунти, що не відповідають вимогам, будуть відхилені.\n\n"
             "Оберіть соціальну мережу:",
             reply_markup=markup
@@ -1196,7 +1425,6 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     # ---------------- SELECT SOCIAL ----------------
 
     if state == "await_social":
-
         allowed_socials = list(SOCIALS.values())
 
         if text not in allowed_socials:
@@ -1212,17 +1440,11 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     # ---------------- ENTER NICK ----------------
 
     if state == "await_nick":
-
         if len(text) < 2:
             await update.message.reply_text("🤷‍♂️Занадто коротке ім’я.")
             return
 
-        accounts = get_accounts()
-
-        if any(
-            str(row.get("username")).lower() == text.lower()
-            for row in accounts
-        ):
+        if account_username_exists(text):
             await update.message.reply_text("🤷‍♂️Це ім’я вже зареєстроване.")
             return
 
@@ -1235,20 +1457,15 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     # ---------------- ENTER LINK ----------------
 
     if state == "await_link":
-
         link = text.strip()
 
         if not link.startswith("http"):
             await update.message.reply_text("💡Посилання має починатися з http або https.")
             return
 
-        accounts = get_accounts()
-
-        for row in accounts:
-
-            if (row.get("profile_link") or "").lower() == link.lower():
-                await update.message.reply_text("🤷‍♂️Цей профіль вже зареєстрований.")
-                return
+        if account_profile_exists(link):
+            await update.message.reply_text("🤷‍♂️Цей профіль вже зареєстрований.")
+            return
 
         res = supabase.table("Accounts").insert({
             "telegram_id": user_id,
@@ -1288,17 +1505,11 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 
         await update.message.reply_text("🔎Акаунт відправлено на модерацію.")
         return
-# ---------------- TASKS MENU ----------------
+
+    # ---------------- TASKS MENU ----------------
 
     if text == "📋Завдання":
-
-        accounts = get_accounts()
-
-        approved = [
-            row for row in accounts
-            if str(row.get("telegram_id")) == str(user_id)
-            and row.get("status") == "Approved"
-        ]
+        approved = get_user_approved_accounts(user_id)
 
         if not approved:
             await update.message.reply_text("⚙️Немає підтверджених акаунтів.")
@@ -1332,17 +1543,11 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     # ---------------- SELECT SOCIAL ----------------
 
     if state == "select_social":
-
         user_selected_social[user_id] = text
-
-        accounts = get_accounts()
 
         approved_accounts = [
             row.get("username")
-            for row in accounts
-            if str(row.get("telegram_id")) == str(user_id)
-            and row.get("social_network") == text
-            and row.get("status") == "Approved"
+            for row in get_user_approved_accounts(user_id, text)
         ]
 
         if not approved_accounts:
@@ -1353,7 +1558,6 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         row = []
 
         for i, acc in enumerate(approved_accounts, start=1):
-
             row.append(f"{i}. {acc}")
 
             if len(row) == 2:
@@ -1372,7 +1576,6 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 
         user_state[user_id] = "select_account"
 
-
         await update.message.reply_text("Оберіть акаунт:", reply_markup=markup)
         return
 
@@ -1381,7 +1584,6 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     if state == "select_account":
         if ". " in text:
             text = text.split(". ", 1)[1]
-
 
         user_selected_account[user_id] = text
         skipped_tasks[(user_id, text)] = set()
@@ -1393,12 +1595,12 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     # ---------------- TASK DONE BUTTON ----------------
 
     if text == "⏭ Пропустити" and state == "working":
-
         task = current_task.get(user_id)
 
         if task:
             account_name = user_selected_account.get(user_id)
             skipped_tasks.setdefault((user_id, account_name), set()).add(task["task_id"])
+            release_reserved_task(task.get("task_record_id"))
 
         current_task.pop(user_id, None)
 
@@ -1406,9 +1608,16 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
 
     if text == "✅ Виконано" and state == "working":
-
         if user_id not in current_task:
             await update.message.reply_text("🤷‍♂️Немає активного завдання.")
+            return
+
+        task = current_task.get(user_id) or {}
+
+        if str(task.get("type")).lower() == "video_view":
+            user_video_screenshots.pop(user_id, None)
+            user_state[user_id] = "await_video_screenshot_1"
+            await update.message.reply_text("📸Надішліть перший скрін перегляду відео.")
             return
 
         user_state[user_id] = "await_screenshot"
@@ -1416,13 +1625,87 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.message.reply_text("📸Надішліть скрін.")
         return
 
+    if state == "await_video_screenshot_1":
+        return await handle_video_screenshot(update, context, first=True)
+
+    if state == "await_video_screenshot_2":
+        return await handle_video_screenshot(update, context, first=False)
+
     if state == "await_screenshot":
         return await handle_single_screenshot(update, context)
-    
-# ---------------- SCREENSHOT ----------------    
+
+
+# ---------------- VIDEO SCREENSHOTS ----------------
+
+async def handle_video_screenshot(update, context, first=True):
+    user_id = update.effective_user.id
+    task = current_task.get(user_id)
+    task_record_id = task.get("task_record_id") if task else None
+
+    if not update.message.photo:
+        await update.message.reply_text("📸Будь ласка, надішліть скріншот.")
+        return
+
+    file_id = update.message.photo[-1].file_id
+
+    if is_screenshot_used(file_id, exclude_task_id=task_record_id):
+        await update.message.reply_text(
+            "⚠️ Цей скріншот вже був використаний раніше.\n\n"
+            "📸 Зробіть новий скріншот."
+        )
+        return
+
+    if first:
+        if task_record_id:
+            supabase.table("Tasks").update({
+                "screenfile_id": file_id
+            }).eq("id", task_record_id).eq("status", "Reserved").execute()
+
+        user_video_screenshots[user_id] = file_id
+        user_state[user_id] = "await_video_screenshot_2"
+
+        await update.message.reply_text("📸Надішліть другий скрін перегляду відео.")
+        return
+
+    first_file_id = user_video_screenshots.get(user_id)
+
+    if not first_file_id and task_record_id:
+        reserved = (
+            supabase
+            .table("Tasks")
+            .select("screenfile_id")
+            .eq("id", task_record_id)
+            .eq("status", "Reserved")
+            .limit(1)
+            .execute()
+            .data
+        )
+        if reserved:
+            first_file_id = reserved[0].get("screenfile_id")
+
+    if not first_file_id:
+        user_state[user_id] = "await_video_screenshot_1"
+        await update.message.reply_text("📸Надішліть перший скрін перегляду відео.")
+        return
+
+    if file_id == first_file_id:
+        await update.message.reply_text(
+            "⚠️ Перший і другий скрін мають бути різними.\n\n"
+            "📸 Надішліть інший другий скрін."
+        )
+        return
+
+    await handle_single_screenshot(
+        update,
+        context,
+        file_id=first_file_id,
+        file_id_2=file_id
+    )
+
+
+# ---------------- SCREENSHOT ----------------
 
 async def handle_single_screenshot(update, context, file_id=None, file_id_2=None):
-
     user_id = update.effective_user.id
     now = datetime.utcnow().isoformat()
 
@@ -1436,31 +1719,6 @@ async def handle_single_screenshot(update, context, file_id=None, file_id_2=None
         file_id = update.message.photo[-1].file_id
 
     # ======================
-    # АНТИДУБЛЬ (1 СКРІН)
-    # ======================
-    existing_1 = supabase.table("Tasks").select("id").eq("screenfile_id", file_id).execute()
-
-    if existing_1.data:
-        await update.message.reply_text(
-            "⚠️ Цей скріншот вже був використаний раніше.\n\n"
-            "📸 Зробіть новий скріншот."
-        )
-        return
-
-    # ======================
-    # АНТИДУБЛЬ (2 СКРІН)
-    # ======================
-    if file_id_2:
-        existing_2 = supabase.table("Tasks").select("id").eq("screenfile_id_2", file_id_2).execute()
-
-        if existing_2.data:
-            await update.message.reply_text(
-                "⚠️ Другий скріншот вже використовувався раніше.\n\n"
-                "📸 Зробіть новий скріншот."
-            )
-            return
-
-    # ======================
     # TASK DATA
     # ======================
     task = current_task.get(user_id)
@@ -1472,32 +1730,65 @@ async def handle_single_screenshot(update, context, file_id=None, file_id_2=None
         return
 
     task_id = task["task_id"]
+    task_record_id = task.get("task_record_id")
 
     # ======================
-    # INSERT В БАЗУ
+    # АНТИДУБЛЬ
     # ======================
-    res = supabase.table("Tasks").insert({
-        "telegram_id": user_id,
-        "social_network": task["social"],
-        "account": account_name,
-        "task_id": task_id,
-        "link": task["link"],
-        "status": "Pending",
-        "assign_date": now,
-        "screenfile_id": file_id,
-        "screenfile_id_2": file_id_2,
-        "comment_text": task.get("comment", "")
-    }).execute()
+    if is_screenshot_used(file_id, exclude_task_id=task_record_id):
+        await update.message.reply_text(
+            "⚠️ Цей скріншот вже був використаний раніше.\n\n"
+            "📸 Зробіть новий скріншот."
+        )
+        return
 
-    task_record_id = res.data[0]["id"]
+    if file_id_2:
+        if file_id_2 == file_id:
+            await update.message.reply_text(
+                "⚠️ Перший і другий скрін мають бути різними.\n\n"
+                "📸 Зробіть новий скріншот."
+            )
+            return
+
+        if is_screenshot_used(file_id_2, exclude_task_id=task_record_id):
+            await update.message.reply_text(
+                "⚠️ Другий скріншот вже використовувався раніше.\n\n"
+                "📸 Зробіть новий скріншот."
+            )
+            return
 
     # ======================
-    # COMMENT POOL
+    # SUBMIT RESERVED TASK
     # ======================
-    if task.get("comment_row_id"):
-        supabase.table("Comment_Pool").update({
-            "active": False
-        }).eq("id", task["comment_row_id"]).execute()
+    if not task_record_id:
+        await update.message.reply_text("⚠️Резерв завдання не знайдено. Отримайте завдання ще раз.")
+        current_task.pop(user_id, None)
+        user_state[user_id] = None
+        await send_next_task(update, user_id)
+        return
+
+    submitted = submit_reserved_task(task_record_id, file_id, file_id_2)
+
+    if not submitted.get("ok"):
+        reason = submitted.get("reason")
+
+        if reason == "RESERVATION_EXPIRED":
+            await update.message.reply_text("⏳ Час на виконання завдання минув. Візьміть нове завдання.")
+        elif reason in ["DUPLICATE_SCREENSHOT", "SAME_SCREENSHOT"]:
+            await update.message.reply_text(
+                "⚠️ Цей скріншот вже був використаний раніше або два скріни однакові.\n\n"
+                "📸 Зробіть новий скріншот."
+            )
+            return
+        else:
+            await update.message.reply_text("⚠️Не вдалося відправити завдання на перевірку. Спробуйте ще раз.")
+            return
+
+        current_task.pop(user_id, None)
+        user_video_screenshots.pop(user_id, None)
+        user_state[user_id] = None
+        await send_next_task(update, user_id)
+        return
 
     # ======================
     # КНОПКИ
@@ -1512,75 +1803,86 @@ async def handle_single_screenshot(update, context, file_id=None, file_id_2=None
     # ======================
     # AUTO CHECK
     # ======================
-    user_row = supabase.table("Users").select("is_top_auto").eq("telegram_id", user_id).execute()
+    user_row = (
+        supabase
+        .table("Users")
+        .select("is_top_auto")
+        .eq("telegram_id", db_user_id(user_id))
+        .limit(1)
+        .execute()
+    )
 
     is_auto = False
     if user_row.data:
         is_auto = user_row.data[0]["is_top_auto"]
 
+    caption = (
+        f"👤 User ID: {user_id}\n"
+        f"📱 Соцмережа: {task['social']}\n"
+        f"👤 Акаунт: {account_name}\n"
+        f"⚙️ Тип: {task['type']}\n"
+        f"📋 Завдання: {task['task_id']}\n"
+        f"🔗 Посилання: {task['link']}"
+    )
+
     # ======================
     # AUTO
     # ======================
     if is_auto:
-
         await asyncio.sleep(0.5)
 
-        supabase.table("Tasks").update({
-            "status": "Approved",
-            "paid": "Paid",
-            "approve_date": now
-        }).eq("id", task_record_id).execute()
+        approved = approve_task_atomic(task_record_id)
+        if not approved.get("ok"):
+            await update.message.reply_text("⚠️ Завдання відправлено, але автоапрув не спрацював.")
+            return
 
-        template = supabase.table("TaskTemplates").select("*").eq("task_id", task_id).execute().data
-        reward = int(template[0]["reward"]) if template else 0
-
-        update_user_balance(user_id, reward)
-        add_to_user_total(user_id, reward)
+        reward = int(approved.get("reward") or 0)
 
         await context.bot.send_message(
             chat_id=int(user_id),
             text=f"✅ Завдання підтверджено!\n💰 Нараховано {reward} Fanki."
         )
 
-        # перший скрін
-        await context.bot.send_photo(
-            TASK_AUTO_ID,
-            file_id,
-            caption="🤖 AUTO APPROVE\n\n" +
-            f"👤 User ID: {user_id}\n"
-            f"📱 Соцмережа: {task['social']}\n"
-            f"👤 Акаунт: {account_name}\n"
-            f"🧩 Тип: {task['type']}\n"
-            f"📄 Завдання: {task['task_id']}\n"
-            f"🔗 Посилання: {task['link']}"
-        )
-
-        # другий скрін
         if file_id_2:
-            await context.bot.send_photo(TASK_AUTO_ID, file_id_2)
+            await context.bot.send_media_group(
+                TASK_AUTO_ID,
+                [
+                    InputMediaPhoto(media=file_id, caption="🤖 AUTO APPROVE\n\n" + caption),
+                    InputMediaPhoto(media=file_id_2)
+                ]
+            )
+        else:
+            await context.bot.send_photo(
+                TASK_AUTO_ID,
+                file_id,
+                caption="🤖 AUTO APPROVE\n\n" + caption
+            )
 
     # ======================
     # MANUAL
     # ======================
     else:
-
-        await context.bot.send_photo(
-            TASK_MODERATOR_ID,
-            file_id,
-            caption=(
-                f"👤 User ID: {user_id}\n"
-                f"📱 Соцмережа: {task['social']}\n"
-                f"👤 Акаунт: {account_name}\n"
-                f"⚙️ Тип: {task['type']}\n"
-                f"📋 Завдання: {task['task_id']}\n"
-                f"🔗 Посилання: {task['link']}"
-            ),
-            reply_markup=keyboard
-        )
-
-        # другий скрін
         if file_id_2:
-            await context.bot.send_photo(TASK_MODERATOR_ID, file_id_2)
+            await context.bot.send_media_group(
+                TASK_MODERATOR_ID,
+                [
+                    InputMediaPhoto(media=file_id, caption=caption),
+                    InputMediaPhoto(media=file_id_2)
+                ]
+            )
+
+            await context.bot.send_message(
+                TASK_MODERATOR_ID,
+                "⬆️ Два скріни до цього завдання",
+                reply_markup=keyboard
+            )
+        else:
+            await context.bot.send_photo(
+                TASK_MODERATOR_ID,
+                file_id,
+                caption=caption,
+                reply_markup=keyboard
+            )
 
         await update.message.reply_text("Скрін відправлено на перевірку.")
 
@@ -1588,6 +1890,7 @@ async def handle_single_screenshot(update, context, file_id=None, file_id_2=None
     # CLEANUP
     # ======================
     current_task.pop(user_id, None)
+    user_video_screenshots.pop(user_id, None)
 
     if task["social"] == "Google Maps":
         user_state[user_id] = None
@@ -1596,17 +1899,18 @@ async def handle_single_screenshot(update, context, file_id=None, file_id_2=None
 
     user_state[user_id] = None
     await send_next_task(update, user_id)
+
+
 # ==============================
 # WITHDRAW (USER SIDE)
 # ==============================
 
 async def handle_withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
     user_id = update.effective_user.id
     text = update.message.text if update.message and update.message.text else ""
-    state = user_state.get(user_id, None)
 
     if text in ["⬅️ Назад", "Назад"]:
+        release_current_task(user_id)
 
         user_state.pop(user_id, None)
         user_binance_id.pop(user_id, None)
@@ -1615,21 +1919,12 @@ async def handle_withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await show_main_menu(update)
         return True
 
-    withdrawals = get_withdrawals()
-
     # ---------------- START WITHDRAW ----------------
 
     if text == "💸Вивід":
-
         balance, _, _ = get_user_data(user_id)
 
-        pending = any(
-            str(r.get("telegram_id")) == str(user_id)
-            and r.get("status") == "Pending"
-            for r in withdrawals
-        )
-
-        if pending:
+        if has_pending_withdrawal(user_id):
             await update.message.reply_text("У вас вже є заявка на розгляді.")
             return True
 
@@ -1651,11 +1946,8 @@ async def handle_withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return True
 
     # ---------------- BINANCE ID ----------------
-    print("USER:", user_id)
-    print("STATE:", user_state.get(user_id))
-    print("TEXT:", text)
-    if user_state.get(user_id) == "await_binance":
 
+    if user_state.get(user_id) == "await_binance":
         if not text.isdigit():
             await update.message.reply_text(
                 "Binance ID повинен містити тільки цифри."
@@ -1679,7 +1971,6 @@ async def handle_withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # ---------------- AMOUNT ----------------
 
     if user_state.get(user_id) == "await_amount":
-
         balance, _, _ = get_user_data(user_id)
 
         if not text.isdigit():
@@ -1716,7 +2007,6 @@ async def handle_withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # ---------------- CONFIRM ----------------
 
     if user_state.get(user_id) == "confirm_withdraw" and text == "Так":
-
         amount = user_withdraw_amount.get(user_id)
 
         if not amount:
@@ -1724,24 +2014,29 @@ async def handle_withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
             user_state[user_id] = None
             return True
 
-        now = datetime.utcnow().isoformat()
-
-    # 💰 РАХУЄМО $
+        # 💰 РАХУЄМО $
         usd = round(amount / 1000, 2)
 
-        deduct_user_balance(user_id, amount)
+        created = call_rpc("create_withdrawal_atomic", {
+            "p_telegram_id": db_user_id(user_id),
+            "p_username": update.effective_user.username or "",
+            "p_binance_id": user_binance_id[user_id],
+            "p_amount": amount
+        })
 
-        res = supabase.table("Withdrawals").insert({
-            "telegram_id": user_id,
-            "username": update.effective_user.username or "",
-            "binance_id": user_binance_id[user_id],
-            "amount": amount,
-            "amount_usd": usd,  # 👈 ОСЬ ЦЕ ГОЛОВНЕ
-            "status": "Pending",
-            "request_date": now
-        }).execute()
+        if not created.get("ok"):
+            reason = created.get("reason")
+            if reason == "PENDING_WITHDRAWAL":
+                await update.message.reply_text("У вас вже є заявка на розгляді.")
+            elif reason == "LOW_BALANCE":
+                await update.message.reply_text("Недостатньо коштів.")
+            else:
+                await update.message.reply_text("Помилка створення заявки на вивід.")
 
-        withdraw_id = res.data[0]["id"]
+            user_state[user_id] = None
+            return True
+
+        withdraw_id = created.get("id")
 
         keyboard = InlineKeyboardMarkup([
             [
@@ -1777,12 +2072,13 @@ async def handle_withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return True
 
     return False
+
+
 # ==============================
 # MESSAGE ROUTER
 # ==============================
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
     user_id = update.effective_user.id
 
     if not update.message:
@@ -1790,15 +2086,32 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     text = update.message.text or ""
 
+    if update.message.photo and user_id not in current_task:
+        active_task = load_active_reserved_task(user_id)
+        if active_task:
+            current_task[user_id] = active_task
+            user_selected_social[user_id] = active_task["social"]
+            user_selected_account[user_id] = active_task["account"]
+
+            if str(active_task.get("type")).lower() == "video_view":
+                if active_task.get("screenfile_id"):
+                    user_video_screenshots[user_id] = active_task["screenfile_id"]
+                    user_state[user_id] = "await_video_screenshot_2"
+                    return await handle_video_screenshot(update, context, first=False)
+
+                user_state[user_id] = "await_video_screenshot_1"
+                return await handle_video_screenshot(update, context, first=True)
+
+            user_state[user_id] = "await_screenshot"
+            return await handle_single_screenshot(update, context)
+
     # --- withdraw ---
     if await handle_withdraw(update, context):
         return
 
     try:
-
         # ================= ADMIN =================
         if is_admin(user_id):
-
             text = text.strip()
 
             # RESET
@@ -1813,15 +2126,19 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             # STATISTICS
             if text == "📊 Статистика":
-                users = get_users()
-                tasks = get_tasks()
-                withdrawals = get_withdrawals()
+                users_balance_rows = (
+                    supabase
+                    .table("Users")
+                    .select("balance")
+                    .execute()
+                    .data
+                    or []
+                )
 
-                total_balance = sum(int(r.get("balance") or 0) for r in users)
-                total_users = len(users)
-
-                pending_tasks = sum(1 for r in tasks if r.get("status") == "Pending")
-                pending_withdraws = sum(1 for r in withdrawals if r.get("status") == "Pending")
+                total_balance = sum(int(r.get("balance") or 0) for r in users_balance_rows)
+                total_users = count_rows("Users")
+                pending_tasks = count_rows("Tasks", "Pending")
+                pending_withdraws = count_rows("Withdrawals", "Pending")
 
                 await update.message.reply_text(
                     f"📊 Статистика\n\n"
@@ -1854,7 +2171,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             state = admin_state.get(user_id)
 
             if state:
-
                 if state["step"] == "id":
                     admin_state[user_id] = {
                         "step": "amount",
@@ -1881,15 +2197,21 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 if state["step"] == "ban_id":
                     supabase.table("Users").update({
                         "status": "Banned"
-                    }).eq("telegram_id", int(text)).execute()
+                    }).eq("telegram_id", db_user_id(text)).execute()
 
                     await update.message.reply_text("🔒 Користувача заблоковано")
                     admin_state.pop(user_id, None)
                     return
 
                 if state["step"] == "broadcast":
-
-                    users = get_users()
+                    users = (
+                        supabase
+                        .table("Users")
+                        .select("telegram_id")
+                        .execute()
+                        .data
+                        or []
+                    )
 
                     for r in users:
                         try:
@@ -1911,12 +2233,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logging.error(traceback.format_exc())
         await update.message.reply_text("Сталася помилка")
 
+
 # ==============================
 # BUILD APP
 # ==============================
 
 def build_app():
-
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
@@ -1938,9 +2260,9 @@ def build_app():
 # ==============================
 
 if __name__ == "__main__":
-
     app = build_app()
 
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
