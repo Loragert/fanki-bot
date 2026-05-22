@@ -695,7 +695,7 @@ async def show_main_menu(update: Update):
         "💸 Подати заявку на вивід коштів\n"
         "📋 Отримати завдання\n\n"
         "📢 Новини, оновлення та інструкції:https://t.me/+XnLg96cCpKpkMjA8 \n"
-        "💬 Спільнота користувачів\n"
+        "💬 Спільнота користувачів:https://t.me/+5_xjkinfaaw3OGQ0 \n"
         "⚠️ Для отримання завдань необхідно спочатку зареєструвати акаунт.\n\n"
         f"👥 Активних користувачів: {active_users}\n\n"
         "👇 Оберіть потрібний пункт нижче"
@@ -1664,7 +1664,7 @@ async def handle_video_screenshot(update, context, first=True):
         user_video_screenshots[user_id] = file_id
         user_state[user_id] = "await_video_screenshot_2"
 
-        await update.message.reply_text("📸Надішліть другий скрін перегляду відео.")
+        await update.message.reply_text("📸Надішліть другий скрін кінця перегляду відео.")
         return
 
     first_file_id = user_video_screenshots.get(user_id)
@@ -1685,7 +1685,7 @@ async def handle_video_screenshot(update, context, first=True):
 
     if not first_file_id:
         user_state[user_id] = "await_video_screenshot_1"
-        await update.message.reply_text("📸Надішліть перший скрін перегляду відео.")
+        await update.message.reply_text("📸Надішліть перший скрін початок перегляду відео.")
         return
 
     if file_id == first_file_id:
