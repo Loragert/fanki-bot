@@ -209,10 +209,52 @@ admin_state = {}
 user_selected_social = {}
 user_selected_account = {}
 user_binance_id = {}
+user_withdraw_method = {}
+user_withdraw_details = {}
+user_withdraw_details_masked = {}
 user_withdraw_amount = {}
 user_video_screenshots = {}
 current_task = {}
 skipped_tasks = {}
+
+WITHDRAW_METHODS = {
+    "Binance ID": {
+        "code": "binance",
+        "prompt": "Введіть Binance ID:",
+        "fee_note": "",
+        "validate_digits": True,
+        "admin_label": "Binance ID"
+    },
+    "Картка банку": {
+        "code": "card",
+        "prompt": "Введіть номер картки:",
+        "fee_note": "⚠️ Для цього методу може зніматися комісія. Остаточну суму підтвердить адміністратор.",
+        "admin_label": "Картка банку"
+    },
+    "USDT TRC20": {
+        "code": "usdt_trc20",
+        "prompt": "Введіть адресу USDT TRC20:",
+        "fee_note": "⚠️ Для цього методу може зніматися комісія. Остаточну суму підтвердить адміністратор.",
+        "admin_label": "USDT TRC20"
+    },
+    "Wallet Telegram": {
+        "code": "wallet_telegram",
+        "prompt": "Введіть ваш Wallet Telegram ID / username / реквізит:",
+        "fee_note": "",
+        "admin_label": "Wallet Telegram"
+    },
+    "CryptoBot": {
+        "code": "cryptobot",
+        "prompt": "Введіть ваш CryptoBot ID / username / реквізит:",
+        "fee_note": "",
+        "admin_label": "CryptoBot"
+    }
+}
+
+WITHDRAW_METHOD_BY_CODE = {
+    cfg["code"]: name
+    for name, cfg in WITHDRAW_METHODS.items()
+}
 
 
 # ==============================
@@ -521,6 +563,114 @@ def finalize_withdrawal_atomic(withdrawal_id, status):
         "p_withdrawal_id": str(withdrawal_id),
         "p_status": status
     })
+
+
+def mask_card(value):
+    digits = re.sub(r"\D", "", str(value or ""))
+    if len(digits) < 4:
+        return "****"
+    return f"**** **** **** {digits[-4:]}"
+
+
+def mask_crypto(value):
+    text = str(value or "").strip()
+    if len(text) <= 10:
+        return text
+    return f"{text[:1]}...{text[-4:]}"
+
+
+def mask_withdraw_details(method_code, details):
+    if method_code == "card":
+        return mask_card(details)
+    if method_code == "usdt_trc20":
+        return mask_crypto(details)
+    return str(details or "").strip()
+
+
+def withdraw_method_name(method_code):
+    return WITHDRAW_METHOD_BY_CODE.get(method_code, "Binance ID")
+
+
+def withdraw_method_code(method_name):
+    return WITHDRAW_METHODS.get(method_name, WITHDRAW_METHODS["Binance ID"])["code"]
+
+
+def get_saved_withdraw_details(user_id, method_code):
+    try:
+        rows = (
+            supabase
+            .table("UserWithdrawalMethods")
+            .select("details, details_masked")
+            .eq("telegram_id", db_user_id(user_id))
+            .eq("method", method_code)
+            .limit(1)
+            .execute()
+            .data
+            or []
+        )
+    except Exception as e:
+        logging.warning(f"UserWithdrawalMethods unavailable: {e}")
+        return None
+
+    return rows[0] if rows else None
+
+
+def save_withdraw_details(user_id, method_code, details):
+    masked = mask_withdraw_details(method_code, details)
+
+    try:
+        existing = get_saved_withdraw_details(user_id, method_code)
+        if existing:
+            return {
+                "ok": True,
+                "details": existing.get("details") or details,
+                "details_masked": existing.get("details_masked") or masked
+            }
+
+        supabase.table("UserWithdrawalMethods").insert({
+            "telegram_id": db_user_id(user_id),
+            "method": method_code,
+            "details": details,
+            "details_masked": masked
+        }).execute()
+
+        return {
+            "ok": True,
+            "details": details,
+            "details_masked": masked
+        }
+    except Exception as e:
+        logging.warning(f"Save withdrawal details error: {e}")
+        return {"ok": False}
+
+
+def create_withdrawal(user_id, username, method_code, details, details_masked, fee_note, amount):
+    params = {
+        "p_telegram_id": db_user_id(user_id),
+        "p_username": username or "",
+        "p_binance_id": details if method_code == "binance" else "",
+        "p_amount": amount,
+        "p_withdrawal_method": method_code,
+        "p_payout_details": details,
+        "p_payout_details_masked": details_masked,
+        "p_payout_fee_note": fee_note or "",
+        "p_payout_fee": None
+    }
+
+    try:
+        return call_rpc("create_withdrawal_atomic", params)
+    except Exception as e:
+        logging.warning(f"Extended withdrawal RPC unavailable: {e}")
+
+    if method_code == "binance":
+        return call_rpc("create_withdrawal_atomic", {
+            "p_telegram_id": db_user_id(user_id),
+            "p_username": username or "",
+            "p_binance_id": details,
+            "p_amount": amount
+        })
+
+    return {"ok": False, "reason": "WITHDRAWAL_MIGRATION_REQUIRED"}
 
 
 def count_rows(table, status=None):
@@ -1064,6 +1214,9 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             user_id = row["telegram_id"]
             amount = int(row["amount"])
+            method_code = row.get("withdrawal_method") or "binance"
+            method_name = withdraw_method_name(method_code)
+            details_masked = row.get("payout_details_masked") or row.get("binance_id") or ""
 
             if action == "withdraw_approve":
                 finalized = finalize_withdrawal_atomic(record_id, "Approved")
@@ -1072,14 +1225,17 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
                 user_id = finalized.get("telegram_id", user_id)
                 amount = int(finalized.get("amount") or amount)
-                binance_id = finalized.get("binance_id") or row["binance_id"]
+                method_code = finalized.get("withdrawal_method") or method_code
+                method_name = withdraw_method_name(method_code)
+                details_masked = finalized.get("payout_details_masked") or finalized.get("binance_id") or details_masked
 
                 await context.bot.send_message(
                     chat_id=int(user_id),
                     text=(
                         "✅ Ваш вивід підтверджено!\n\n"
+                        f"💳 Метод: {method_name}\n"
                         f"💰 Сума: {amount} Fanki\n"
-                        f"🏦 Binance ID: {binance_id}\n\n"
+                        f"📌 Реквізити: {details_masked}\n\n"
                         "🙏 Дякуємо за участь у Fanki!"
                     )
                 )
@@ -1093,14 +1249,17 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
                 user_id = finalized.get("telegram_id", user_id)
                 amount = int(finalized.get("amount") or amount)
-                binance_id = finalized.get("binance_id") or row["binance_id"]
+                method_code = finalized.get("withdrawal_method") or method_code
+                method_name = withdraw_method_name(method_code)
+                details_masked = finalized.get("payout_details_masked") or finalized.get("binance_id") or details_masked
 
                 await context.bot.send_message(
                     chat_id=int(user_id),
                     text=(
                         "❌ Ваш запит на вивід відхилено\n\n"
+                        f"💳 Метод: {method_name}\n"
                         f"💰 Сума: {amount} Fanki\n"
-                        f"🏦 Binance ID: {binance_id}\n\n"
+                        f"📌 Реквізити: {details_masked}\n\n"
                         "💰 Кошти повернено на ваш баланс."
                     )
                 )
@@ -1534,6 +1693,9 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         user_selected_social.pop(user_id, None)
         user_selected_account.pop(user_id, None)
         user_binance_id.pop(user_id, None)
+        user_withdraw_method.pop(user_id, None)
+        user_withdraw_details.pop(user_id, None)
+        user_withdraw_details_masked.pop(user_id, None)
         user_withdraw_amount.pop(user_id, None)
         user_video_screenshots.pop(user_id, None)
         current_task.pop(user_id, None)
@@ -2130,6 +2292,9 @@ async def handle_withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         user_state.pop(user_id, None)
         user_binance_id.pop(user_id, None)
+        user_withdraw_method.pop(user_id, None)
+        user_withdraw_details.pop(user_id, None)
+        user_withdraw_details_masked.pop(user_id, None)
         user_withdraw_amount.pop(user_id, None)
 
         await show_main_menu(update)
@@ -2137,7 +2302,17 @@ async def handle_withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # ---------------- START WITHDRAW ----------------
 
-    if text == "💸Вивід":
+    if text in ["💸Вивід", "💸 Вивід"]:
+        telegram_username = update.effective_user.username or ""
+
+        if not telegram_username:
+            await update.message.reply_text(
+                "⚠️ Для виводу коштів потрібно встановити username у Telegram.\n\n"
+                "Відкрийте Telegram → Налаштування → Ім’я користувача.\n"
+                "Після цього поверніться в бот і натисніть /start."
+            )
+            return True
+
         balance, _, _ = get_user_data(user_id)
 
         if has_pending_withdrawal(user_id):
@@ -2148,38 +2323,103 @@ async def handle_withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("Мінімум для виводу 1000 Fanki.")
             return True
 
-        user_state[user_id] = "await_binance"
+        user_state[user_id] = "await_withdraw_method"
 
         markup = ReplyKeyboardMarkup(
-            [["⬅️ Назад"]],
+            [[name] for name in WITHDRAW_METHODS.keys()] + [["⬅️ Назад"]],
             resize_keyboard=True
         )
 
         await update.message.reply_text(
-            "Введіть Binance ID:",
+            "Оберіть метод виводу.\n\n"
+            "Доступні методи:\n\n"
+            "• Binance ID\n"
+            "• Картка банку\n"
+            "• USDT TRC20\n"
+            "• Wallet Telegram\n"
+            "• CryptoBot\n\n"
+            "⚠️ Для виводу на картку банку та USDT TRC20 може зніматися комісія.\n\n"
+            "Реквізити для кожного методу вводяться один раз. Надалі вони будуть використовуватися автоматично. "
+            "Якщо потрібно змінити реквізити — зверніться до підтримки.",
             reply_markup=markup
         )
         return True
 
-    # ---------------- BINANCE ID ----------------
+    # ---------------- SELECT WITHDRAW METHOD ----------------
 
-    if user_state.get(user_id) == "await_binance":
-        if not text.isdigit():
+    if user_state.get(user_id) == "await_withdraw_method":
+        if text not in WITHDRAW_METHODS:
+            await update.message.reply_text("Оберіть метод виводу кнопкою.")
+            return True
+
+        method_code = withdraw_method_code(text)
+        user_withdraw_method[user_id] = method_code
+
+        saved = get_saved_withdraw_details(user_id, method_code)
+        if saved:
+            details = saved.get("details") or ""
+            details_masked = saved.get("details_masked") or mask_withdraw_details(method_code, details)
+
+            user_withdraw_details[user_id] = details
+            user_withdraw_details_masked[user_id] = details_masked
+            user_state[user_id] = "await_amount"
+
+            markup = ReplyKeyboardMarkup([["⬅️ Назад"]], resize_keyboard=True)
             await update.message.reply_text(
-                "Binance ID повинен містити тільки цифри."
+                f"Ви виводите на {text}: {details_masked}\n"
+                "Введіть суму, яку хочете вивести.",
+                reply_markup=markup
             )
             return True
 
-        user_binance_id[user_id] = text
-        user_state[user_id] = "await_amount"
+        user_state[user_id] = "await_withdraw_details"
+        markup = ReplyKeyboardMarkup([["⬅️ Назад"]], resize_keyboard=True)
+        await update.message.reply_text(WITHDRAW_METHODS[text]["prompt"], reply_markup=markup)
+        return True
 
-        markup = ReplyKeyboardMarkup(
-            [["⬅️ Назад"]],
-            resize_keyboard=True
-        )
+    # ---------------- ENTER WITHDRAW DETAILS ----------------
+
+    if user_state.get(user_id) == "await_withdraw_details":
+        method_code = user_withdraw_method.get(user_id)
+        method_name = withdraw_method_name(method_code)
+        method_cfg = WITHDRAW_METHODS.get(method_name, WITHDRAW_METHODS["Binance ID"])
+        details = text.strip()
+
+        if not details:
+            await update.message.reply_text("Введіть реквізити.")
+            return True
+
+        if method_cfg.get("validate_digits") and not details.isdigit():
+            await update.message.reply_text("Binance ID повинен містити тільки цифри.")
+            return True
+
+        saved = save_withdraw_details(user_id, method_code, details)
+        if not saved.get("ok"):
+            if method_code == "binance":
+                details_masked = mask_withdraw_details(method_code, details)
+            else:
+                await update.message.reply_text(
+                    "⚠️ Збереження реквізитів тимчасово недоступне. "
+                    "Потрібно виконати міграцію бази даних або звернутися до підтримки."
+                )
+                user_state[user_id] = None
+                return True
+        else:
+            details = saved.get("details") or details
+            details_masked = saved.get("details_masked") or mask_withdraw_details(method_code, details)
+
+        user_withdraw_details[user_id] = details
+        user_withdraw_details_masked[user_id] = details_masked
+        if method_code == "binance":
+            user_binance_id[user_id] = details
+
+        user_state[user_id] = "await_amount"
+        markup = ReplyKeyboardMarkup([["⬅️ Назад"]], resize_keyboard=True)
 
         await update.message.reply_text(
-            "Введіть суму:",
+            "✅ Реквізити збережено.\n"
+            "Змінити їх можна тільки через підтримку.\n\n"
+            "Введіть суму, яку хочете вивести.",
             reply_markup=markup
         )
         return True
@@ -2203,42 +2443,55 @@ async def handle_withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("Недостатньо коштів.")
             return True
 
+        method_code = user_withdraw_method.get(user_id, "binance")
+        method_name = withdraw_method_name(method_code)
+        details_masked = user_withdraw_details_masked.get(user_id) or ""
+        fee_note = WITHDRAW_METHODS.get(method_name, {}).get("fee_note", "")
+        usd = round(amount / 1000, 2)
+
         user_withdraw_amount[user_id] = amount
         user_state[user_id] = "confirm_withdraw"
 
-        markup = ReplyKeyboardMarkup(
-            [["Так"], ["⬅️ Назад"]],
-            resize_keyboard=True
-        )
+        markup = ReplyKeyboardMarkup([["Так"], ["⬅️ Назад"]], resize_keyboard=True)
+        fee_block = f"\n{fee_note}" if fee_note else ""
 
         await update.message.reply_text(
-            f"Підтвердити вивід {amount} Fanki "
-            f"(${amount/1000:.2f}) "
-            f"на Binance ID {user_binance_id[user_id]}?",
+            "Підтвердити вивід?\n\n"
+            f"Метод: {method_name}\n"
+            f"Реквізити: {details_masked}\n"
+            f"Сума: {amount} Fanki\n"
+            f"≈ {usd}$"
+            f"{fee_block}",
             reply_markup=markup
         )
-
         return True
 
     # ---------------- CONFIRM ----------------
 
     if user_state.get(user_id) == "confirm_withdraw" and text == "Так":
         amount = user_withdraw_amount.get(user_id)
+        method_code = user_withdraw_method.get(user_id, "binance")
+        method_name = withdraw_method_name(method_code)
+        details = user_withdraw_details.get(user_id) or user_binance_id.get(user_id) or ""
+        details_masked = user_withdraw_details_masked.get(user_id) or mask_withdraw_details(method_code, details)
+        fee_note = WITHDRAW_METHODS.get(method_name, {}).get("fee_note", "")
 
-        if not amount:
+        if not amount or not details:
             await update.message.reply_text("Помилка.")
             user_state[user_id] = None
             return True
 
-        # 💰 РАХУЄМО $
         usd = round(amount / 1000, 2)
 
-        created = call_rpc("create_withdrawal_atomic", {
-            "p_telegram_id": db_user_id(user_id),
-            "p_username": update.effective_user.username or "",
-            "p_binance_id": user_binance_id[user_id],
-            "p_amount": amount
-        })
+        created = create_withdrawal(
+            user_id,
+            update.effective_user.username or "",
+            method_code,
+            details,
+            details_masked,
+            fee_note,
+            amount
+        )
 
         if not created.get("ok"):
             reason = created.get("reason")
@@ -2246,6 +2499,11 @@ async def handle_withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await update.message.reply_text("У вас вже є заявка на розгляді.")
             elif reason == "LOW_BALANCE":
                 await update.message.reply_text("Недостатньо коштів.")
+            elif reason == "WITHDRAWAL_MIGRATION_REQUIRED":
+                await update.message.reply_text(
+                    "⚠️ Цей метод виводу ще не активований у базі даних. "
+                    "Будь ласка, зверніться до підтримки."
+                )
             else:
                 await update.message.reply_text("Помилка створення заявки на вивід.")
 
@@ -2256,35 +2514,41 @@ async def handle_withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         keyboard = InlineKeyboardMarkup([
             [
-                InlineKeyboardButton(
-                    "✅ Підтвердити",
-                    callback_data=f"withdraw_approve|{withdraw_id}"
-                ),
-                InlineKeyboardButton(
-                    "❌ Відхилити",
-                    callback_data=f"withdraw_reject|{withdraw_id}"
-                )
+                InlineKeyboardButton("✅ Підтвердити", callback_data=f"withdraw_approve|{withdraw_id}"),
+                InlineKeyboardButton("❌ Відхилити", callback_data=f"withdraw_reject|{withdraw_id}")
             ]
         ])
+
+        fee_admin = f"\nКомісія/попередження: {fee_note}" if fee_note else ""
 
         await context.bot.send_message(
             ADMIN_ID[0],
             f"💸 Новий запит на вивід\n\n"
-            f"👤 User: {user_id}\n"
-            f"💰 Сума: {amount} Fanki (~{usd}$)\n"
-            f"🏦 Binance ID: {user_binance_id[user_id]}",
+            f"User ID: {user_id}\n"
+            f"Username: @{update.effective_user.username}\n"
+            f"Метод: {method_name}\n"
+            f"Сума: {amount} Fanki\n"
+            f"≈ USD: {usd}$\n"
+            f"Реквізити: {details}"
+            f"{fee_admin}",
             reply_markup=keyboard
         )
 
         await update.message.reply_text(
-            f"✅ Заявка на вивід створена\n\n"
-            f"💰 Сума: {amount} Fanki\n"
-            f"💵 ≈ {usd}$\n"
-            f"🏦 Binance ID: {user_binance_id[user_id]}\n\n"
-            f"Очікуйте підтвердження адміністратора."
+            "✅ Заявка на вивід створена.\n\n"
+            f"Метод: {method_name}\n"
+            f"Сума: {amount} Fanki\n"
+            f"≈ {usd}$\n"
+            f"Реквізити: {details_masked}\n\n"
+            "Очікуйте підтвердження адміністратора."
         )
 
         user_state[user_id] = None
+        user_binance_id.pop(user_id, None)
+        user_withdraw_method.pop(user_id, None)
+        user_withdraw_details.pop(user_id, None)
+        user_withdraw_details_masked.pop(user_id, None)
+        user_withdraw_amount.pop(user_id, None)
         return True
 
     return False
@@ -2481,4 +2745,5 @@ if __name__ == "__main__":
     print("FankiBot Supabase Version 🚀")
 
     app.run_polling(drop_pending_updates=True)
+
 
