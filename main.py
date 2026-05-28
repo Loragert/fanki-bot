@@ -6,6 +6,7 @@ import re
 import logging
 import traceback
 import asyncio
+import random
 from datetime import datetime
 import os
 
@@ -47,6 +48,8 @@ SOCIALS = {
     "telegram": "Telegram",
     "google": "Google Maps"
 }
+
+TASK_SELECTION_POOL_SIZE = 50
 
 # ==============================
 # CONFIG
@@ -397,6 +400,13 @@ def reserve_task_assignment(user_id, social_network, account_name, template, use
     })
 
 
+def task_execution_key(task_type, link):
+    return (
+        str(task_type or "").strip().lower(),
+        str(link or "").strip()
+    )
+
+
 def submit_reserved_task(task_record_id, file_id, file_id_2=None):
     return call_rpc("submit_reserved_task_atomic", {
         "p_task_record_id": str(task_record_id),
@@ -695,7 +705,7 @@ async def show_main_menu(update: Update):
         "💸 Подати заявку на вивід коштів\n"
         "📋 Отримати завдання\n\n"
         "📢 Новини, оновлення та інструкції:https://t.me/+XnLg96cCpKpkMjA8 \n"
-        "💬 Спільнота користувачів:https://t.me/+5_xjkinfaaw3OGQ0 \n"
+        "💬 Спільнота користувачів\n"
         "⚠️ Для отримання завдань необхідно спочатку зареєструвати акаунт.\n\n"
         f"👥 Активних користувачів: {active_users}\n\n"
         "👇 Оберіть потрібний пункт нижче"
@@ -754,6 +764,42 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def safe_edit_caption(query, text):
     try:
         await query.edit_message_caption(text)
+    except:
+        pass
+
+
+async def mark_admin_task_decision(query, status_text):
+    message = query.message
+    old_caption = message.caption if message else None
+
+    if old_caption is not None:
+        new_caption = old_caption if status_text in old_caption else old_caption + f"\n\n{status_text}"
+
+        try:
+            await query.edit_message_caption(
+                caption=new_caption,
+                reply_markup=None
+            )
+            return
+        except:
+            pass
+
+    old_text = message.text if message and message.text else ""
+
+    if old_text:
+        new_text = old_text if status_text in old_text else old_text + f"\n\n{status_text}"
+
+        try:
+            await query.edit_message_text(
+                text=new_text,
+                reply_markup=None
+            )
+            return
+        except:
+            pass
+
+    try:
+        await query.edit_message_reply_markup(reply_markup=None)
     except:
         pass
 
@@ -834,6 +880,12 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             row = res.data[0]
 
             if row["status"] != "Pending":
+                if row["status"] == "Approved":
+                    await mark_admin_task_decision(query, "✅ Виконано")
+                elif row["status"] == "Rejected":
+                    await mark_admin_task_decision(query, "❌ Відхилено")
+                else:
+                    await mark_admin_task_decision(query, f"Статус: {row['status']}")
                 return
 
             user_id = row["telegram_id"]
@@ -879,10 +931,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     text=msg
                 )
 
-                old_caption = query.message.caption or ""
-                new_caption = old_caption + "\n\n✅ Підтверджено"
-
-                await safe_edit_caption(query, new_caption)
+                await mark_admin_task_decision(query, "✅ Виконано")
 
             else:
                 supabase.table("Tasks").update({
@@ -902,10 +951,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     text=msg
                 )
 
-                old_caption = query.message.caption or ""
-                new_caption = old_caption + "\n\n❌ Відхилено"
-
-                await safe_edit_caption(query, new_caption)
+                await mark_admin_task_decision(query, "❌ Відхилено")
 
         # =========================
         # WITHDRAW APPROVE / REJECT
@@ -1075,8 +1121,68 @@ async def send_next_task(update: Update, user_id: str):
         except:
             pass
 
+    candidate_links = list({
+        (t.get("link") or "").strip()
+        for t in prepared_templates
+        if (t.get("link") or "").strip()
+    })
+
+    done_action_link_keys = set()
+
+    if candidate_links:
+        execution_rows = (
+            supabase
+            .table("Tasks")
+            .select("task_id, link, status")
+            .eq("account", account_name)
+            .eq("social_network", social_network)
+            .in_("status", ["Reserved", "Pending", "Approved"])
+            .in_("link", candidate_links)
+            .execute()
+            .data
+            or []
+        )
+
+        executed_task_ids = []
+        for row in execution_rows:
+            try:
+                executed_task_ids.append(int(row.get("task_id")))
+            except:
+                pass
+
+        executed_task_types = {}
+        if executed_task_ids:
+            executed_templates = (
+                supabase
+                .table("TaskTemplates")
+                .select("task_id, task_type, link")
+                .in_("task_id", list(set(executed_task_ids)))
+                .execute()
+                .data
+                or []
+            )
+
+            for row in executed_templates:
+                try:
+                    executed_task_types[int(row.get("task_id"))] = row
+                except:
+                    pass
+
+        for row in execution_rows:
+            try:
+                executed_template = executed_task_types.get(int(row.get("task_id"))) or {}
+            except:
+                executed_template = {}
+
+            task_type = executed_template.get("task_type")
+            link = (row.get("link") or executed_template.get("link") or "").strip()
+
+            if task_type and link:
+                done_action_link_keys.add(task_execution_key(task_type, link))
+
     comments_by_task = {}
     recent_comment_accounts = set()
+    last_comment_assign_by_task = {}
 
     if comment_task_ids:
         comments = (
@@ -1114,6 +1220,29 @@ async def send_next_task(update: Update, user_id: str):
             for r in recent_comments
             if r.get("account")
         }
+
+        comment_assignments = (
+            supabase
+            .table("Tasks")
+            .select("task_id, assign_date")
+            .neq("comment_text", "")
+            .in_("task_id", comment_task_ids)
+            .order("assign_date", desc=True)
+            .execute()
+            .data
+            or []
+        )
+
+        for row in comment_assignments:
+            try:
+                tid = int(row.get("task_id"))
+            except:
+                continue
+
+            if tid not in last_comment_assign_by_task:
+                last_comment_assign_by_task[tid] = row.get("assign_date")
+
+    available_templates = []
 
     for template in prepared_templates:
         if str(template.get("social_network")).lower() != str(social_network).lower():
@@ -1153,32 +1282,34 @@ async def send_next_task(update: Update, user_id: str):
             continue
 
         task_type = template.get("task_type")
+        link = (template.get("link") or "").strip()
+
+        if task_execution_key(task_type, link) in done_action_link_keys:
+            continue
 
         # --- COMMENT TIMER (НЕ ЧІПАЄМО) ---
         if str(task_type).lower() == "comment":
             if account_name in recent_comment_accounts:
                 continue
 
-            last_comment = (
-                supabase
-                .table("Tasks")
-                .select("assign_date")
-                .eq("task_id", task_id)
-                .neq("comment_text", "")
-                .order("assign_date", desc=True)
-                .limit(1)
-                .execute()
-            )
+            last_assign_date = last_comment_assign_by_task.get(task_id)
 
-            if last_comment.data:
+            if last_assign_date:
                 from datetime import timedelta
 
-                last_time = datetime.fromisoformat(last_comment.data[0]["assign_date"])
+                last_time = datetime.fromisoformat(last_assign_date)
                 now_time = datetime.now(last_time.tzinfo)
 
                 if (now_time - last_time) < timedelta(minutes=40):
                     continue
 
+        available_templates.append(template)
+
+    random.shuffle(available_templates)
+
+    for template in available_templates[:TASK_SELECTION_POOL_SIZE]:
+        task_id = template["_task_id_int"]
+        task_type = template.get("task_type")
         link = (template.get("link") or "").strip()
         reward = template.get("reward")
         action_text = TASK_TEXT.get(str(task_type).lower(), task_type)
@@ -1664,7 +1795,7 @@ async def handle_video_screenshot(update, context, first=True):
         user_video_screenshots[user_id] = file_id
         user_state[user_id] = "await_video_screenshot_2"
 
-        await update.message.reply_text("📸Надішліть другий скрін кінця перегляду відео.")
+        await update.message.reply_text("📸Надішліть другий скрін перегляду відео.")
         return
 
     first_file_id = user_video_screenshots.get(user_id)
@@ -1685,7 +1816,7 @@ async def handle_video_screenshot(update, context, first=True):
 
     if not first_file_id:
         user_state[user_id] = "await_video_screenshot_1"
-        await update.message.reply_text("📸Надішліть перший скрін початок перегляду відео.")
+        await update.message.reply_text("📸Надішліть перший скрін перегляду відео.")
         return
 
     if file_id == first_file_id:
