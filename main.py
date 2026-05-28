@@ -38,18 +38,113 @@ TASK_TEXT = {
     "like": "👍 Лайкнути пост",
     "follow": "➕ Підписатися",
     "video_view": "📺 Переглянути відео",
-    "comment": "💬 Залишити коментар"
+    "comment": "💬 Залишити коментар",
+    "rating": "⭐ Поставити оцінку"
 }
 SOCIALS = {
     "instagram": "Instagram",
-    "tiktok": "TikTok",
     "facebook": "Facebook",
+    "tiktok": "TikTok",
     "youtube": "YouTube",
     "telegram": "Telegram",
     "google": "Google Maps"
 }
 
 TASK_SELECTION_POOL_SIZE = 50
+
+
+def is_google_maps_social(social_network):
+    return str(social_network or "").strip().lower() in ["google", "google maps"]
+
+
+ACCOUNT_REQUIREMENTS = {
+    "Instagram": (
+        "Вимоги до Instagram-акаунту:\n\n"
+        "• Акаунт має бути відкритий\n"
+        "• Мінімум 50 підписників\n"
+        "• Мінімум 5 постів\n\n"
+        "⚠️ Акаунти, що не відповідають вимогам, будуть відхилені."
+    ),
+    "TikTok": (
+        "Вимоги до TikTok-акаунту:\n\n"
+        "• Акаунт має бути відкритий\n"
+        "• Мінімум 50 підписників\n"
+        "• Мінімум 5 постів\n\n"
+        "⚠️ Акаунти, що не відповідають вимогам, будуть відхилені."
+    ),
+    "Facebook": (
+        "Вимоги до Facebook-акаунту:\n\n"
+        "• Акаунт має бути відкритий\n"
+        "• Мінімум 50 підписників\n"
+        "• Мінімум 5 постів\n\n"
+        "⚠️ Акаунти, що не відповідають вимогам, будуть відхилені."
+    ),
+    "YouTube": (
+        "Вимоги до YouTube-акаунту:\n\n"
+        "• акаунт має бути реальним і активним\n"
+        "• бажано мати фото профілю або нормальне ім’я\n"
+        "• не використовувати новостворені порожні акаунти\n"
+        "• не використовувати акаунти з підозрілою активністю\n"
+        "• акаунт має відкривати YouTube без обмежень\n"
+        "• для завдань із підпискою/лайком потрібно виконувати дію саме з зареєстрованого акаунту\n\n"
+        "⚠️ Акаунти, що не відповідають вимогам, будуть відхилені."
+    ),
+    "Telegram": (
+        "Вимоги до Telegram-акаунту:\n\n"
+        "• акаунт має бути реальним і активним\n"
+        "• акаунт не має бути обмежений Telegram\n"
+        "• бажано мати ім’я користувача або нормальне ім’я профілю\n"
+        "• акаунт має мати можливість вступати в канали/групи\n"
+        "• акаунт має мати можливість ставити реакції або виконувати потрібні дії\n"
+        "• не використовувати новостворені порожні акаунти\n\n"
+        "⚠️ Акаунти, що не відповідають вимогам, будуть відхилені."
+    ),
+    "Google Maps": (
+        "Вимоги до Google Maps (Google акаунт):\n\n"
+        "Профіль має бути активним та виглядати природно. Бажано, щоб він містив:\n"
+        "• Фото профілю\n"
+        "• Ім’я та прізвище (можна вигадані)\n"
+        "• 8–15 відгуків\n"
+        "• Відгуки в різних містах\n"
+        "• Різні оцінки (не лише 5⭐)\n"
+        "• Кілька фото у відгуках\n"
+        "• Лайки чужих відгуків\n\n"
+        "⚠️ Акаунти, що не відповідають вимогам, будуть відхилені."
+    )
+}
+
+
+def task_short_instruction(task_type, social_network):
+    task_type = str(task_type or "").strip().lower()
+
+    if task_type == "rating" and is_google_maps_social(social_network):
+        return "⭐ Поставте тільки оцінку без коментаря."
+
+    if task_type == "comment" and is_google_maps_social(social_network):
+        return (
+            "💬 Напишіть відгук.\n"
+            "Якщо в завданні вказана оцінка — спочатку поставте зірки, потім опублікуйте відгук."
+        )
+
+    if task_type == "comment":
+        return (
+            "💬 Скопіюйте текст коментаря під завданням.\n"
+            "Не залишайте два однакових коментарі."
+        )
+
+    return ""
+
+
+def task_rating_line(template, social_network):
+    if not is_google_maps_social(social_network):
+        return ""
+
+    for key in ["rating", "stars", "grade"]:
+        value = template.get(key)
+        if value not in [None, ""]:
+            return f"⭐ Оцінка: {value}\n\n"
+
+    return ""
 
 # ==============================
 # CONFIG
@@ -1046,7 +1141,7 @@ async def send_next_task(update: Update, user_id: str):
     templates = (
         supabase
         .table("TaskTemplates")
-        .select("id, task_id, task_type, link, reward, active, social_network, gender_target, region_target, max_total, max_per_day")
+        .select("*")
         .eq("active", True)
         .eq("social_network", social_network)
         .order("id")
@@ -1313,6 +1408,8 @@ async def send_next_task(update: Update, user_id: str):
         link = (template.get("link") or "").strip()
         reward = template.get("reward")
         action_text = TASK_TEXT.get(str(task_type).lower(), task_type)
+        instruction = task_short_instruction(task_type, social_network)
+        rating_line = task_rating_line(template, social_network)
 
         reservation = reserve_task_assignment(
             user_id,
@@ -1346,23 +1443,24 @@ async def send_next_task(update: Update, user_id: str):
                 "📌 Завдання\n\n"
                 "⚠️ Обов'язково зробіть скрін виконаної дії!\n\n"
                 "❗ Важливо:\n"
-                "• Скопіюйте текст коментаря під завданням 👇\n"
-                "• Не залишайте два однакових коментарі\n"
-                "• Обов'язково поставити 5 зірок✨(для гугл мапс)\n"
-                "• Перед публікацією перевірте, чи такого коментаря ще немає під постом\n\n"
+                f"{instruction}\n\n"
                 f"🔗 Посилання:\n{link}\n\n"
                 f"🎯 Дія:\n{action_text}\n\n"
+                f"{rating_line}"
                 f"💰 Нагорода:\n{reward} Fanki\n\n"
             )
             await update.message.reply_text(msg)
             await update.message.reply_text(comment_text)
 
         else:
+            instruction_block = f"❗ Важливо:\n{instruction}\n\n" if instruction else ""
             msg = (
                 "📌 Завдання\n\n"
                 "⚠️ Обов'язково зробіть скрін виконаної дії!\n\n"
+                f"{instruction_block}"
                 f"🔗 Посилання:\n{link}\n\n"
                 f"🎯 Дія:\n{action_text}\n\n"
+                f"{rating_line}"
                 f"💰 Нагорода:\n{reward} Fanki\n\n"
             )
             await update.message.reply_text(msg)
@@ -1534,24 +1632,10 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         user_state[user_id] = "await_social"
 
         await update.message.reply_text(
-            "📋 Перед реєстрацією акаунту ознайомтесь з вимогами.\n\n"
-            "Instagram / TikTok / Facebook:\n"
-            "• Акаунт має бути відкритий\n"
-            "• Мінімум 50 підписників\n"
-            "• Мінімум 5 постів\n\n"
-            "Google Maps (Google акаунт):\n"
-            "Профіль має бути активним та виглядати природно. Бажано, щоб він містив:\n"
-            "• Фото профілю\n"
-            "• Ім’я та прізвище (можна вигадані)\n"
-            "• 8–15 відгуків\n"
-            "• Відгуки в різних містах\n"
-            "• Різні оцінки (не лише 5⭐)\n"
-            "• Кілька фото у відгуках\n"
-            "• Лайки чужих відгуків\n\n"
-            "⚠️ Акаунти, що не відповідають вимогам, будуть відхилені.\n\n"
-            "Оберіть соціальну мережу:",
+            "Оберіть соціальну мережу для реєстрації акаунту:",
             reply_markup=markup
         )
+        return
 
     # ---------------- SELECT SOCIAL ----------------
 
@@ -1565,6 +1649,7 @@ async def handle_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         user_selected_social[user_id] = text
         user_state[user_id] = "await_nick"
 
+        await update.message.reply_text(ACCOUNT_REQUIREMENTS.get(text, ""))
         await update.message.reply_text("✍️Введіть нік без @:")
         return
 
