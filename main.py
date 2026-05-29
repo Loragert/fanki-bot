@@ -118,7 +118,7 @@ def task_short_instruction(task_type, social_network):
     task_type = str(task_type or "").strip().lower()
 
     if task_type == "rating" and is_google_maps_social(social_network):
-        return "⭐ Поставте тільки оцінку без коментаря."
+        return "5 ⭐ Поставте тільки оцінку без коментаря."
 
     if task_type == "comment" and is_google_maps_social(social_network):
         return (
