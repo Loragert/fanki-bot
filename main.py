@@ -234,7 +234,7 @@ WITHDRAW_METHODS = {
     "USDT TRC20": {
         "code": "usdt_trc20",
         "prompt": "Введіть адресу USDT TRC20:",
-        "fee_note": "⚠️ Для цього методу може зніматися комісія. Остаточну суму підтвердить адміністратор.",
+        "fee_note": "⚠️ Мінімальна сума на вивід-5$,комісія 1.37$.",
         "admin_label": "USDT TRC20"
     },
     "Wallet Telegram": {
